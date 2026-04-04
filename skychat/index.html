@@ -1,0 +1,1391 @@
+<!--
+  SkyChat
+  Copyright (C) 2026  dw with opencode
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天聊 - 加密聊天 / SkyChat</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
+    <style>
+        :root {
+            --bg-main: #faf7f2;        /* warm cream background */
+            --bg-panel: #f0ebe3;       /* slightly darker cream for panels */
+            --bg-sidebar: #e8e2d8;     /* sidebar background */
+            --text-main: #3d3929;      /* dark warm brown text */
+            --text-secondary: #7a7265; /* muted brown for secondary text */
+            --accent-green: #2d8a4e;   /* primary green accent */
+            --accent-orange: #d4841a;  /* orange for highlights/actions */
+            --accent-red: #c0392b;     /* red for danger/alerts */
+            --success: #27ae60;        /* success indicator green */
+            --msg-own: #d4edda;        /* own message bubble - light green */
+            --msg-other: #fff3e0;      /* other message bubble - light orange */
+            --border-color: #d4cfc7;   /* warm gray border */
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 16px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .text-accent { color: var(--accent-green); }
+        .text-danger { color: var(--accent-red); }
+        .text-center { text-align: center; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-1 { flex: 1; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .p-4 { padding: 1rem; }
+        .m-4 { margin: 1rem; }
+        
+        /* Components */
+        button {
+            background: transparent;
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            transition: all 0.2s;
+            border-radius: 2px;
+        }
+        button:hover {
+            background: rgba(45, 138, 78, 0.1);
+            box-shadow: 0 0 10px rgba(45, 138, 78, 0.2);
+        }
+        button:disabled {
+            border-color: #ccc;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        button.danger {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+        button.danger:hover {
+            background: rgba(192, 57, 43, 0.1);
+        }
+
+        input, select {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.5rem;
+            width: 100%;
+            font-family: var(--font-mono);
+            border-radius: 2px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+
+        #app {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Views */
+        #view-landing, #view-setup {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: var(--bg-panel);
+            padding: 2rem;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid var(--border-color);
+        }
+
+        .title {
+            font-family: var(--font-mono);
+            font-size: 1.3rem;
+            margin-bottom: 1.2rem;
+            text-align: center;
+            letter-spacing: 2px;
+            color: var(--accent-green);
+            text-transform: uppercase;
+        }
+
+        /* Chat Layout */
+        #view-chat {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--bg-panel);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-dot.connected { background: var(--success); box-shadow: 0 0 5px var(--success); }
+        .status-dot.disconnected { background: var(--accent-red); }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #sidebar {
+            width: 250px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        #member-list {
+            overflow-y: auto;
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .member-item {
+            padding: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1rem;
+            border-radius: 2px;
+        }
+        .member-item:hover { background: rgba(0,0,0,0.05); }
+        .member-name { display: flex; align-items: center; gap: 8px; }
+        .kick-btn {
+            padding: 2px 6px;
+            font-size: 0.8rem;
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        #main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-main);
+            position: relative;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            scroll-behavior: smooth;
+        }
+
+        .msg-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+            max-width: 100%;
+        }
+        .msg-row.own {
+            flex-direction: row-reverse;
+        }
+        .msg-row.other {
+            flex-direction: row;
+        }
+        .msg-row.system {
+            justify-content: center;
+        }
+        .msg-avatar {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .msg {
+            flex: 0 1 auto;
+            max-width: calc(100% - 58px);
+            padding: 0.5rem 0.8rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .msg.own {
+            background: var(--msg-own);
+            border-radius: 12px 2px 12px 12px;
+        }
+        
+        .msg.other {
+            background: var(--msg-other);
+            border-radius: 2px 12px 12px 12px;
+        }
+        
+        .msg.system {
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+            border: none;
+            max-width: 100%;
+        }
+
+        .msg-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            gap: 10px;
+        }
+        
+        .msg-content { white-space: pre-wrap; }
+        
+        .verification-badge {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            cursor: help;
+        }
+
+        #chat-footer {
+            padding: 1rem;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Mobile Responsive */
+        .mobile-only { display: none; }
+        @media (max-width: 768px) {
+            .mobile-only { display: inline-block; }
+            #sidebar {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 100;
+                transform: translateX(-100%);
+            }
+            #sidebar.open { transform: translateX(0); }
+            .msg { max-width: calc(100% - 50px); }
+            .msg-row .msg { max-width: calc(100% - 48px); }
+        }
+
+        /* Modal / Overlay */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- Notification Toast -->
+        <div id="toast" style="position: fixed; top: 20px; right: 20px; background: var(--bg-panel); padding: 10px 20px; border-radius: 4px; z-index: 2000; display: none; border-left: 3px solid var(--accent-orange); color: var(--text-main);"></div>
+
+        <!-- 1. Landing View -->
+        <div id="view-landing" class="hidden">
+            <div class="card text-center">
+                <div class="title">天聊<br><span style="font-size: 0.85em; color: var(--text-secondary);">SkyChat</span></div>
+                <p style="margin-bottom: 2rem; color: var(--text-secondary); font-size: 0.95rem;">加密聊天<br>Encrypted Chat</p>
+                <button id="btn-create-room" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;">创建新房间<br><span style="font-size: 0.85em; color: rgba(255,255,255,0.8);">Create Room</span></button>
+            </div>
+        </div>
+
+        <!-- 2. Setup View -->
+        <div id="view-setup" class="hidden">
+            <div class="card">
+                <div class="title">身份设置<br><span style="font-size: 0.85em; color: var(--text-secondary);">Identity Setup</span></div>
+                <form id="setup-form" class="flex flex-col gap-4">
+                    <div>
+                        <label style="font-size: 0.85rem; color: var(--text-secondary);">昵称 <span style="font-size: 0.85em;">Nickname</span></label>
+                        <input type="text" id="input-nickname" placeholder="输入显示名称 / Enter name" required maxlength="20" autofocus>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 0.85rem; color: var(--text-secondary);">会话密码 / Session Password</label>
+                        <input type="password" id="input-password" placeholder="设置密码 / Set password" required>
+                        <div id="password-strength" style="margin-top: 0.4rem; font-size: 0.82rem; color: var(--text-secondary);"></div>
+                    </div>
+
+                    <div id="ttl-section" class="hidden">
+                        <label style="font-size: 0.85rem; color: var(--text-secondary);">房间时长 <span style="font-size: 0.85em;">Duration</span></label>
+                        <select id="input-ttl">
+                            <option value="3600">1小时 / 1 Hour</option>
+                            <option value="21600">6小时 / 6 Hours</option>
+                            <option value="86400">24小时 / 24 Hours</option>
+                            <option value="259200">72小时 / 72 Hours</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="btn-enter-room" style="margin-top: 0.8rem; font-size: 0.95rem;">进入房间 <span style="font-size: 0.85em; opacity: 0.8;">Enter Room</span></button>
+                    <button type="button" id="btn-cancel-setup" class="danger" style="font-size: 0.95rem;">取消 <span style="font-size: 0.85em; opacity: 0.8;">Cancel</span></button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Chat View -->
+        <div id="view-chat" class="hidden">
+            <header>
+                <div class="flex items-center gap-2">
+                    <button id="btn-toggle-sidebar" class="mobile-only" style="padding: 4px 8px;">☰</button>
+                    <div class="flex flex-col">
+                        <span style="font-weight: bold; letter-spacing: 1px;">安全屋 / Safe Room</span>
+                        <span id="room-status-text" style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">等待连接... / Connecting...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="connection-dot" class="status-dot"></div>
+                    <button id="btn-copy-invite" title="Copy Invite Link">链接 / Link</button>
+                    <button id="btn-refresh" title="Refresh / 刷新">🔄 刷新</button>
+                    <div id="admin-controls" class="hidden flex gap-2">
+                        <button id="btn-clear-msgs" class="danger" title="Clear All Messages">清空 / Clear</button>
+                        <button id="btn-close-room" class="danger" title="Close Room">关闭 / Close</button>
+                    </div>
+                    <button id="btn-exit-room" title="Exit Room" style="background: var(--text-secondary); color: white;">退出 / Exit</button>
+                </div>
+            </header>
+
+            <div class="chat-container">
+                <div id="sidebar">
+                    <div class="sidebar-header">在线成员 / Members (<span id="member-count">0</span>)</div>
+                    <div id="member-list">
+                        <!-- Member items injected here -->
+                    </div>
+                </div>
+                
+                <div id="main-chat">
+                    <div id="messages">
+                        <!-- Messages injected here -->
+                    </div>
+                    <form id="chat-form">
+                        <div id="chat-footer">
+                            <input type="text" id="input-message" placeholder="输入消息... / Type message..." autocomplete="off" maxlength="10000">
+                            <button type="submit">发送 / Send</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div id="modal-overlay" class="hidden">
+            <div class="card" style="max-width: 300px; text-align: center;">
+                <div id="modal-title" class="title" style="font-size: 1.2rem; color: var(--accent-red);">提醒 / Alert</div>
+                <p id="modal-msg" style="margin-bottom: 1.5rem;">消息 / Message</p>
+                <button id="btn-modal-ok">确认 / OK</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * PART 1: CryptoUtils
+ * Web Crypto API Wrapper for AES-GCM, ECDSA, PBKDF2
+ */
+const CryptoUtils = {
+    // --- Room Key (AES-GCM) ---
+    async generateRoomKey() {
+        return await crypto.subtle.generateKey(
+            { name: "AES-GCM", length: 256 },
+            true, ["encrypt", "decrypt"]
+        );
+    },
+
+    async exportRoomKey(key) {
+        const exported = await crypto.subtle.exportKey("raw", key);
+        return this.arrayBufferToBase64(exported, true); // URL safe base64
+    },
+
+    async importRoomKey(base64url) {
+        const raw = this.base64ToArrayBuffer(base64url, true);
+        return await crypto.subtle.importKey(
+            "raw", raw,
+            { name: "AES-GCM" },
+            true, ["encrypt", "decrypt"]
+        );
+    },
+
+    async encryptMessage(roomKey, plaintext, aad) {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = this.utf8Encode(plaintext);
+        const params = { name: "AES-GCM", iv: iv };
+        if (aad) params.additionalData = this.utf8Encode(aad);
+        const ciphertext = await crypto.subtle.encrypt(
+            params,
+            roomKey,
+            encoded
+        );
+        return {
+            ciphertext: this.arrayBufferToBase64(ciphertext),
+            iv: this.arrayBufferToBase64(iv)
+        };
+    },
+
+    async decryptMessage(roomKey, ciphertextB64, ivB64, aad) {
+        const ciphertext = this.base64ToArrayBuffer(ciphertextB64);
+        const iv = this.base64ToArrayBuffer(ivB64);
+        try {
+            const params = { name: "AES-GCM", iv: iv };
+            if (aad) params.additionalData = this.utf8Encode(aad);
+            const decrypted = await crypto.subtle.decrypt(
+                params,
+                roomKey,
+                ciphertext
+            );
+            return this.utf8Decode(decrypted);
+        } catch (e) {
+            console.error("Decryption failed:", e);
+            return "[Decryption Error]";
+        }
+    },
+
+    // --- Identity Key Pair (ECDSA P-256) ---
+    async generateIdentityKeyPair() {
+        return await crypto.subtle.generateKey(
+            { name: "ECDSA", namedCurve: "P-256" },
+            true, ["sign", "verify"]
+        );
+    },
+
+    async exportPublicKey(key) {
+        const exported = await crypto.subtle.exportKey("jwk", key);
+        return JSON.stringify(exported);
+    },
+
+    async importPublicKey(jwkString) {
+        const jwk = JSON.parse(jwkString);
+        return await crypto.subtle.importKey(
+            "jwk", jwk,
+            { name: "ECDSA", namedCurve: "P-256" },
+            true, ["verify"]
+        );
+    },
+
+    async signMessage(privateKey, dataString) {
+        const data = this.utf8Encode(dataString);
+        const sig = await crypto.subtle.sign(
+            { name: "ECDSA", hash: { name: "SHA-256" } },
+            privateKey,
+            data
+        );
+        return this.arrayBufferToBase64(sig);
+    },
+
+    async verifySignature(publicKey, signatureB64, dataString) {
+        const signature = this.base64ToArrayBuffer(signatureB64);
+        const data = this.utf8Encode(dataString);
+        try {
+            return await crypto.subtle.verify(
+                { name: "ECDSA", hash: { name: "SHA-256" } },
+                publicKey,
+                signature,
+                data
+            );
+        } catch (e) {
+            return false;
+        }
+    },
+
+    async getKeyFingerprint(publicKey) {
+        const exported = await crypto.subtle.exportKey("raw", publicKey);
+        const hash = await crypto.subtle.digest("SHA-256", exported);
+        const hashArray = Array.from(new Uint8Array(hash));
+        const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hex.substring(0, 16);
+    },
+
+    async sha256Hex(input) {
+        const digest = await crypto.subtle.digest("SHA-256", this.utf8Encode(input));
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    // --- Key Wrapping (PBKDF2 + AES-GCM) ---
+    async deriveWrappingKey(password, salt) {
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw", this.utf8Encode(password),
+            { name: "PBKDF2" }, false, ["deriveKey"]
+        );
+        return await crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false, ["encrypt", "decrypt"]
+        );
+    },
+
+    async wrapPrivateKey(password, privateKey) {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const wrappingKey = await this.deriveWrappingKey(password, salt);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        
+        // Export private key to PKCS8 then encrypt
+        const keyData = await crypto.subtle.exportKey("pkcs8", privateKey);
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            wrappingKey,
+            keyData
+        );
+        
+        return {
+            encrypted: this.arrayBufferToBase64(encrypted),
+            salt: this.arrayBufferToBase64(salt),
+            iv: this.arrayBufferToBase64(iv)
+        };
+    },
+
+    async unwrapPrivateKey(password, wrappedData, keyType = "ECDSA") {
+        const salt = this.base64ToArrayBuffer(wrappedData.salt);
+        const iv = this.base64ToArrayBuffer(wrappedData.iv);
+        const encrypted = this.base64ToArrayBuffer(wrappedData.encrypted);
+        const wrappingKey = await this.deriveWrappingKey(password, salt);
+
+        const decryptedKeyData = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            wrappingKey,
+            encrypted
+        );
+
+        if (keyType === "ECDSA") {
+            return await crypto.subtle.importKey(
+                "pkcs8", decryptedKeyData,
+                { name: "ECDSA", namedCurve: "P-256" },
+                true, ["sign"]
+            );
+        }
+        throw new Error("Unsupported key type");
+    },
+
+    // --- Helpers ---
+    arrayBufferToBase64(buffer, urlSafe = false) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = window.btoa(binary);
+        return urlSafe ? b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') : b64;
+    },
+
+    base64ToArrayBuffer(base64, urlSafe = false) {
+        let b64 = base64;
+        if (urlSafe) {
+            b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+        }
+        const binary_string = window.atob(b64);
+        const len = binary_string.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes.buffer;
+    },
+
+    utf8Encode(str) { return new TextEncoder().encode(str); },
+    utf8Decode(buf) { return new TextDecoder().decode(buf); }
+};
+
+/**
+ * Global App State
+ */
+const Utils = {
+    nicknameToColor(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const h = Math.abs(hash) % 360;
+        return `hsl(${h}, 65%, 50%)`;
+    },
+    
+    getInitials(str) {
+        return str ? str.charAt(0).toUpperCase() : '?';
+    }
+};
+
+const State = {
+    roomId: null,
+    roomKey: null,
+    myMemberId: null, // SHA-256(member UUID)
+    myOriginalMemberId: null, // original UUID kept locally
+    myKeys: null,
+    isAdmin: false,
+    members: new Map(),
+    messages: [],
+    inviteUrl: "",
+    lastMessageTimestamp: 0,
+    pollTimer: null
+};
+
+/**
+ * UI Controller
+ */
+const UI = {
+    views: {
+        landing: document.getElementById('view-landing'),
+        setup: document.getElementById('view-setup'),
+        chat: document.getElementById('view-chat')
+    },
+    
+    showView(viewName) {
+        Object.values(this.views).forEach(el => el.classList.add('hidden'));
+        this.views[viewName].classList.remove('hidden');
+    },
+
+    toast(msg, duration = 3000) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', duration);
+    },
+
+    showModal(msg, onOk) {
+        const overlay = document.getElementById('modal-overlay');
+        document.getElementById('modal-msg').textContent = msg;
+        overlay.classList.remove('hidden');
+        const btn = document.getElementById('btn-modal-ok');
+        btn.onclick = () => {
+            overlay.classList.add('hidden');
+            if (onOk) onOk();
+        };
+    },
+
+    updateConnectionStatus() {
+        const dot = document.getElementById('connection-dot');
+        const text = document.getElementById('room-status-text');
+        dot.classList.add('connected');
+        dot.classList.remove('disconnected');
+        dot.style.background = '';
+        const rid = State.roomId;
+        text.textContent = '';
+        const prefix = document.createTextNode('已连接 / Connected: ');
+        const bold = document.createElement('b');
+        bold.textContent = rid.substring(0,3) + '.' + rid.substring(rid.length-3);
+        text.appendChild(prefix);
+        text.appendChild(bold);
+    },
+
+    addMessage(msgData) {
+        const container = document.getElementById('messages');
+        const isOwn = msgData.senderId === State.myMemberId;
+        const isSystem = msgData.type === 'system';
+
+        // Outer row wrapper
+        const row = document.createElement('div');
+        row.className = `msg-row ${isSystem ? 'system' : (isOwn ? 'own' : 'other')}`;
+
+        // Avatar (non-system only)
+        if (!isSystem) {
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            const nickname = msgData.senderNickname || '?';
+            avatar.style.background = Utils.nicknameToColor(nickname);
+            avatar.textContent = Utils.getInitials(nickname);
+            row.appendChild(avatar);
+        }
+
+        // Message bubble
+        const bubble = document.createElement('div');
+        bubble.className = `msg ${isSystem ? 'system' : (isOwn ? 'own' : 'other')}`;
+
+        if (!isSystem) {
+            const meta = document.createElement('div');
+            meta.className = 'msg-meta';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = msgData.senderNickname || '未知 / Unknown';
+            meta.appendChild(nameSpan);
+
+            const rightMeta = document.createElement('span');
+            const time = new Date(msgData.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            let verifBadge = '';
+            if (!isOwn) {
+                verifBadge = msgData.verified ? ' ✓' : ' ⚠';
+            }
+            rightMeta.textContent = `${time}${verifBadge}`;
+            if (msgData.verified === false) rightMeta.style.color = 'var(--accent-red)';
+            else if (msgData.verified === true) rightMeta.style.color = 'var(--success)';
+            meta.appendChild(rightMeta);
+            bubble.appendChild(meta);
+        }
+
+        const content = document.createElement('div');
+        content.className = 'msg-content';
+        content.textContent = msgData.text;
+        bubble.appendChild(content);
+
+        row.appendChild(bubble);
+        container.appendChild(row);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    renderMembers() {
+        const list = document.getElementById('member-list');
+        while (list.firstChild) list.removeChild(list.firstChild);
+        document.getElementById('member-count').textContent = State.members.size;
+
+        State.members.forEach((member, id) => {
+            const div = document.createElement('div');
+            div.className = 'member-item';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'member-name';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.style.width = '28px';
+            avatar.style.height = '28px';
+            avatar.style.minWidth = '28px';
+            avatar.style.fontSize = '0.75rem';
+            avatar.style.background = Utils.nicknameToColor(member.nickname);
+            avatar.textContent = Utils.getInitials(member.nickname);
+            if (!member.is_active) avatar.style.opacity = '0.4';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = member.nickname + (id === State.myMemberId ? ' (我/You)' : '');
+            if (id === State.myMemberId) nameSpan.style.color = 'var(--accent-green)';
+            
+            nameDiv.appendChild(avatar);
+            nameDiv.appendChild(nameSpan);
+            div.appendChild(nameDiv);
+
+            if (State.isAdmin && id !== State.myMemberId && member.is_active) {
+                const kickBtn = document.createElement('button');
+                kickBtn.className = 'kick-btn';
+                kickBtn.textContent = '踢出 / Kick';
+                kickBtn.onclick = () => App.kickMember(id);
+                div.appendChild(kickBtn);
+            }
+            
+            list.appendChild(div);
+        });
+    }
+};
+
+/**
+ * Core Logic
+ */
+const App = {
+    async init() {
+        // Check hash for room join
+        if (window.location.hash.length > 1) {
+            await this.handleJoinFlow(window.location.hash.substring(1));
+        } else {
+            UI.showView('landing');
+        }
+
+        this.setupEventListeners();
+    },
+
+    setupEventListeners() {
+        document.getElementById('btn-create-room').onclick = () => {
+            document.getElementById('ttl-section').classList.remove('hidden');
+            UI.showView('setup');
+        };
+
+        const passInput = document.getElementById('input-password');
+        passInput.addEventListener('input', () => this.updatePasswordStrength(passInput.value));
+
+        document.getElementById('setup-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const nick = document.getElementById('input-nickname').value.trim();
+            const pass = document.getElementById('input-password').value;
+            const ttl = document.getElementById('input-ttl').value;
+            
+            const button = document.getElementById('btn-enter-room');
+            button.textContent = "加密中... / Encrypting...";
+            button.disabled = true;
+
+            try {
+                if (State.roomId) {
+                    await this.joinRoom(nick, pass);
+                } else {
+                    await this.createRoom(nick, pass, ttl);
+                }
+            } catch (err) {
+                UI.showModal("错误 / Error: " + err.message);
+                button.textContent = "进入房间 / Enter Room";
+                button.disabled = false;
+            }
+        };
+        
+        document.getElementById('chat-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('input-message');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            await this.sendMessage(text);
+            input.value = '';
+        };
+
+        document.getElementById('btn-copy-invite').onclick = () => {
+            navigator.clipboard.writeText(State.inviteUrl);
+            UI.toast("邀请链接已复制 / Link Copied");
+        };
+
+        document.getElementById('btn-refresh').onclick = async () => {
+            await this.loadMessages();
+            await this.refreshMembers();
+            UI.toast("已刷新 / Refreshed");
+        };
+
+        document.getElementById('btn-toggle-sidebar').onclick = () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        };
+
+        document.getElementById('btn-exit-room').onclick = () => {
+            if (!confirm("确认退出房间？/ Leave this room?")) return;
+            App.stopPolling();
+            State.roomId = null;
+            State.roomKey = null;
+            State.myMemberId = null;
+            State.myOriginalMemberId = null;
+            State.myKeys = null;
+            State.isAdmin = false;
+            State.members.clear();
+            State.messages = [];
+            State.inviteUrl = '';
+            State.lastMessageTimestamp = 0;
+            const msgContainer = document.getElementById('messages');
+            while (msgContainer.firstChild) msgContainer.removeChild(msgContainer.firstChild);
+            window.location.hash = '';
+            UI.showView('landing');
+        };
+        
+        document.getElementById('btn-cancel-setup').onclick = () => {
+            State.roomId = null;
+            State.roomKey = null;
+            window.location.hash = '';
+            UI.showView('landing');
+        };
+        
+        // Admin controls
+        document.getElementById('btn-clear-msgs').onclick = async () => {
+            if(confirm("删除所有消息？/ Delete all messages?")) {
+                const res = await fetch(`/api/rooms/${State.roomId}/admin`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        requesterMemberId: State.myMemberId,
+                        command: 'clear'
+                    })
+                });
+                if (res.ok) {
+                    const msgContainer = document.getElementById('messages');
+                    while (msgContainer.firstChild) msgContainer.removeChild(msgContainer.firstChild);
+                    State.lastMessageTimestamp = 0;
+                    UI.addMessage({ type: 'system', text: "-- 消息已清空 / Messages Cleared --" });
+                }
+            }
+        };
+        
+        document.getElementById('btn-close-room').onclick = async () => {
+            if(confirm("永久关闭房间？/ Close room permanently?")) {
+                const res = await fetch(`/api/rooms/${State.roomId}/admin`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        requesterMemberId: State.myMemberId,
+                        command: 'close'
+                    })
+                });
+                if (res.ok) {
+                    this.stopPolling();
+                    UI.showModal("房间已关闭 / Room closed", () => window.location.reload());
+                }
+            }
+        };
+    },
+
+    updatePasswordStrength(password) {
+        const el = document.getElementById('password-strength');
+        if (!password) {
+            el.textContent = '';
+            el.style.color = 'var(--text-secondary)';
+            return;
+        }
+        if (password.length < 6) {
+            el.textContent = '密码较短，建议至少6位 / Password is short, recommend 6+ chars';
+            el.style.color = 'var(--accent-orange)';
+            return;
+        }
+        if (password.length < 10) {
+            el.textContent = '密码强度适中 / Moderate strength';
+            el.style.color = 'var(--text-secondary)';
+            return;
+        }
+        el.textContent = '密码强度良好 / Good strength';
+        el.style.color = 'var(--success)';
+    },
+
+    async createRoom(nickname, password, ttl) {
+        // 1. Generate keys
+        State.roomKey = await CryptoUtils.generateRoomKey();
+        State.myKeys = await CryptoUtils.generateIdentityKeyPair();
+        State.myOriginalMemberId = crypto.randomUUID();
+        State.myMemberId = await CryptoUtils.sha256Hex(State.myOriginalMemberId);
+        State.roomId = crypto.randomUUID();
+        State.isAdmin = true;
+
+        // 2. Prepare data
+        const adminPubKeyStr = await CryptoUtils.exportPublicKey(State.myKeys.publicKey);
+        const { ciphertext: nickEnc, iv: nickIv } = await CryptoUtils.encryptMessage(State.roomKey, nickname);
+        const nickPayload = JSON.stringify({ ct: nickEnc, iv: nickIv });
+        const passwordHash = await CryptoUtils.sha256Hex(password);
+
+        // 3. API Call
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            body: JSON.stringify({
+                roomId: State.roomId,
+                adminPublicKey: adminPubKeyStr,
+                adminMemberId: State.myMemberId,
+                passwordHash: passwordHash,
+                nicknameEncrypted: nickPayload,
+                ttl: parseInt(ttl)
+            })
+        });
+
+        if (!res.ok) throw new Error("创建房间失败 / Failed to create room");
+
+        // 4. Persistence & URL
+        await this.persistIdentity(password);
+        const roomKeyB64 = await CryptoUtils.exportRoomKey(State.roomKey);
+        State.inviteUrl = `${window.location.origin}${window.location.pathname}#${State.roomId}.${roomKeyB64}`;
+        
+        // 5. Finalize
+        State.members.set(State.myMemberId, {
+            publicKey: State.myKeys.publicKey,
+            nickname: nickname,
+            is_active: true
+        });
+        this.finishSetup();
+    },
+    
+    async handleJoinFlow(hash) {
+        try {
+            const [roomId, roomKeyB64] = hash.split('.');
+            if (!roomId || !roomKeyB64) throw new Error("无效邀请链接 / Invalid invite link");
+
+            // Validate roomId is a UUID to prevent client-side request forgery
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidPattern.test(roomId)) throw new Error("无效房间ID / Invalid room ID");
+
+            State.roomId = roomId;
+            State.roomKey = await CryptoUtils.importRoomKey(roomKeyB64);
+            State.inviteUrl = window.location.href;
+
+            // Verify room exists
+            const res = await fetch(`/api/rooms/${roomId}`);
+            if (!res.ok) throw new Error("房间不存在或已过期 / Room not found or expired");
+
+            document.getElementById('ttl-section').classList.add('hidden');
+
+            // Check if we already have identity
+            const stored = localStorage.getItem(`chat_id_${roomId}`);
+            if (stored) {
+                UI.showView('setup');
+                document.getElementById('btn-enter-room').textContent = "解锁身份 / Unlock Identity";
+            } else {
+                UI.showView('setup');
+                document.getElementById('btn-enter-room').textContent = "进入房间 / Enter Room";
+            }
+        } catch (e) {
+            UI.showModal(e.message, () => {
+                window.location.hash = '';
+                UI.showView('landing');
+            });
+        }
+    },
+    
+    async joinRoom(nickname, password) {
+        const stored = localStorage.getItem(`chat_id_${State.roomId}`);
+        const passwordHash = await CryptoUtils.sha256Hex(password);
+        
+
+        if (stored) {
+            const data = JSON.parse(stored);
+            try {
+                State.myKeys = {
+                    privateKey: await CryptoUtils.unwrapPrivateKey(password, data.wrappedKey),
+                    publicKey: await CryptoUtils.importPublicKey(data.publicKeyJwk)
+                };
+                State.myOriginalMemberId = data.memberId;
+                State.myMemberId = data.memberIdHash || await CryptoUtils.sha256Hex(data.memberId);
+                State.isAdmin = data.isAdmin;
+
+                const pubKeyStr = await CryptoUtils.exportPublicKey(State.myKeys.publicKey);
+                const loginNick = nickname || `用户 / User ${State.myMemberId.substring(0,4)}`;
+                const { ciphertext: loginNickEnc, iv: loginNickIv } = await CryptoUtils.encryptMessage(State.roomKey, loginNick);
+                const loginNickPayload = JSON.stringify({ ct: loginNickEnc, iv: loginNickIv });
+                const loginRes = await fetch(`/api/rooms/${State.roomId}/login`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        memberId: State.myMemberId,
+                        passwordHash: passwordHash,
+                        publicKey: pubKeyStr,
+                        nicknameEncrypted: loginNickPayload
+                    })
+                });
+                if (!loginRes.ok) {
+                    throw new Error("账号登录失败 / Login failed");
+                }
+            } catch (e) {
+                throw new Error("密码错误或密钥损坏 / Incorrect password or corrupted key");
+            }
+        } else {
+            // New user registration
+            State.myKeys = await CryptoUtils.generateIdentityKeyPair();
+            State.myOriginalMemberId = crypto.randomUUID();
+            State.myMemberId = await CryptoUtils.sha256Hex(State.myOriginalMemberId);
+            State.isAdmin = false;
+        }
+
+        // Fetch room details to get other members
+        const res = await fetch(`/api/rooms/${State.roomId}`);
+        if (!res.ok) throw new Error("获取房间失败 / Room fetch failed");
+        const roomData = await res.json();
+        
+        // Import all members
+        State.members.clear();
+        for (const m of roomData.memberPublicKeys) {
+            try {
+                const pk = await CryptoUtils.importPublicKey(m.publicKey);
+                let memberNick = `用户 / User ${m.memberId.substring(0,4)}`;
+                if (m.nicknameEncrypted) {
+                    try {
+                        const payload = JSON.parse(m.nicknameEncrypted);
+                        memberNick = await CryptoUtils.decryptMessage(State.roomKey, payload.ct, payload.iv);
+                    } catch(e2) {}
+                }
+                State.members.set(m.memberId, {
+                    publicKey: pk,
+                    nickname: memberNick,
+                    is_active: true
+                });
+            } catch(e) {}
+        }
+
+        // Register self if new
+        if (!stored) {
+            const pubKeyStr = await CryptoUtils.exportPublicKey(State.myKeys.publicKey);
+            const { ciphertext: nickEnc, iv: nickIv } = await CryptoUtils.encryptMessage(State.roomKey, nickname);
+            const nickPayload = JSON.stringify({ ct: nickEnc, iv: nickIv });
+
+            const joinRes = await fetch(`/api/rooms/${State.roomId}/join`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    memberId: State.myMemberId,
+                    publicKey: pubKeyStr,
+                    nicknameEncrypted: nickPayload,
+                    passwordHash: passwordHash
+                })
+            });
+            if (!joinRes.ok) throw new Error("加入失败 / Join failed");
+
+            await this.persistIdentity(password);
+        }
+        
+        // Update my own entry in map with correct nickname
+        State.members.set(State.myMemberId, {
+            publicKey: State.myKeys.publicKey,
+            nickname: nickname,
+            is_active: true
+        });
+
+        this.finishSetup();
+    },
+
+    async persistIdentity(password) {
+        const wrapped = await CryptoUtils.wrapPrivateKey(password, State.myKeys.privateKey);
+        const pubKeyJwk = await CryptoUtils.exportPublicKey(State.myKeys.publicKey);
+
+        const data = {
+            memberId: State.myOriginalMemberId,
+            memberIdHash: State.myMemberId,
+            wrappedKey: wrapped,
+            publicKeyJwk: pubKeyJwk,
+            isAdmin: State.isAdmin
+        };
+        localStorage.setItem(`chat_id_${State.roomId}`, JSON.stringify(data));
+    },
+
+    async finishSetup() {
+        if (State.isAdmin) {
+            document.getElementById('admin-controls').classList.remove('hidden');
+        }
+        
+        UI.showView('chat');
+        UI.updateConnectionStatus();
+        UI.renderMembers();
+        
+        await this.loadMessages();
+        this.startPolling();
+        
+        document.getElementById('input-message').focus();
+    },
+
+    async loadMessages() {
+        try {
+            const res = await fetch(`/api/rooms/${State.roomId}/messages?since=${State.lastMessageTimestamp}`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    this.stopPolling();
+                    UI.showModal("房间已关闭或过期 / Room closed or expired", () => {
+                        localStorage.removeItem(`chat_id_${State.roomId}`);
+                        window.location.hash = '';
+                        window.location.reload();
+                    });
+                }
+                return;
+            }
+            const msgs = await res.json();
+            for (const msg of msgs) {
+                const isOwn = msg.sender_id === State.myMemberId;
+                if (isOwn) {
+                    // Render own messages directly (processIncomingMessage skips them)
+                    try {
+                        const text = await CryptoUtils.decryptMessage(State.roomKey, msg.ciphertext, msg.iv, msg.sender_id);
+                        UI.addMessage({
+                            type: 'message',
+                            senderId: msg.sender_id,
+                            senderNickname: State.members.get(msg.sender_id)?.nickname || '我 / Me',
+                            text: text,
+                            timestamp: msg.created_at,
+                            verified: true
+                        });
+                    } catch(decErr) {
+                        console.error("Decrypt own msg error:", decErr);
+                    }
+                } else {
+                    await this.processIncomingMessage({
+                        type: 'message',
+                        senderId: msg.sender_id,
+                        ciphertext: msg.ciphertext,
+                        iv: msg.iv,
+                        signature: msg.signature,
+                        timestamp: msg.created_at
+                    });
+                }
+                if (msg.created_at > State.lastMessageTimestamp) {
+                    State.lastMessageTimestamp = msg.created_at + 1;
+                }
+            }
+        } catch (e) {
+            console.error("Poll error:", e);
+        }
+    },
+
+    async sendMessage(text) {
+        const aad = State.myMemberId;
+        const { ciphertext, iv } = await CryptoUtils.encryptMessage(State.roomKey, text, aad);
+        const sigData = ciphertext + ':' + iv + ':' + State.myMemberId;
+        const sig = await CryptoUtils.signMessage(State.myKeys.privateKey, sigData);
+        
+        const res = await fetch(`/api/rooms/${State.roomId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({
+                senderId: State.myMemberId,
+                ciphertext: ciphertext,
+                iv: iv,
+                signature: sig
+            })
+        });
+
+        if (!res.ok) {
+            UI.toast("发送失败 / Send failed");
+            return;
+        }
+
+        UI.addMessage({
+            type: 'message',
+            senderId: State.myMemberId,
+            senderNickname: State.members.get(State.myMemberId)?.nickname || '我 / Me',
+            text: text,
+            timestamp: Date.now() / 1000,
+            verified: true
+        });
+        State.lastMessageTimestamp = Math.floor(Date.now() / 1000) + 1;
+    },
+
+    async processIncomingMessage(msg) {
+        if (msg.senderId === State.myMemberId) return;
+        
+        const text = await CryptoUtils.decryptMessage(State.roomKey, msg.ciphertext, msg.iv, msg.senderId);
+        const sender = State.members.get(msg.senderId);
+        let verified = false;
+        let nickname = '未知 / Unknown';
+        
+        if (sender) {
+            nickname = sender.nickname;
+            const sigData = msg.ciphertext + ':' + msg.iv + ':' + msg.senderId;
+            verified = await CryptoUtils.verifySignature(sender.publicKey, msg.signature, sigData);
+        }
+        
+        UI.addMessage({
+            type: 'message',
+            senderId: msg.senderId,
+            senderNickname: nickname,
+            text: text,
+            timestamp: msg.timestamp,
+            verified: verified
+        });
+    },
+
+    async refreshMembers() {
+        try {
+            const res = await fetch(`/api/rooms/${State.roomId}`);
+            if (!res.ok) return;
+            const roomData = await res.json();
+            
+            const newMemberIds = new Set();
+            for (const m of roomData.memberPublicKeys) {
+                newMemberIds.add(m.memberId);
+                if (!State.members.has(m.memberId)) {
+                    try {
+                        const pk = await CryptoUtils.importPublicKey(m.publicKey);
+                        let memberNick = `用户 / User ${m.memberId.substring(0,4)}`;
+                        if (m.nicknameEncrypted) {
+                            try {
+                                const payload = JSON.parse(m.nicknameEncrypted);
+                                memberNick = await CryptoUtils.decryptMessage(State.roomKey, payload.ct, payload.iv);
+                            } catch(e2) {}
+                        }
+                        State.members.set(m.memberId, {
+                            publicKey: pk,
+                            nickname: memberNick,
+                            is_active: true
+                        });
+                    } catch(e) {}
+                }
+            }
+            UI.renderMembers();
+        } catch(e) {}
+    },
+
+    startPolling() {
+        this.stopPolling();
+        State.pollTimer = setInterval(async () => {
+            await this.loadMessages();
+            await this.refreshMembers();
+        }, 3000);
+    },
+
+    stopPolling() {
+        if (State.pollTimer) {
+            clearInterval(State.pollTimer);
+            State.pollTimer = null;
+        }
+    },
+    
+    async kickMember(memberId) {
+        if (!confirm("确认踢出？/ Confirm kick?")) return;
+        const res = await fetch(`/api/rooms/${State.roomId}/admin`, {
+            method: 'POST',
+            body: JSON.stringify({
+                requesterMemberId: State.myMemberId,
+                command: 'kick',
+                targetMemberId: memberId
+            })
+        });
+        if (res.ok) {
+            State.members.delete(memberId);
+            UI.renderMembers();
+            UI.toast("已踢出 / Kicked");
+        }
+    }
+};
+
+// Start
+App.init();
+
+</script>
+</body>
+</html>

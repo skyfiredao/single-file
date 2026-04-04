@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src *; img-src 'none'; font-src 'none'; frame-src 'none';">
+    <title>Portal Site Zero</title>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-hover: #1765cc;
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --border-color: #dadce0;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --text-url: #1a73e8;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            --shadow-sm: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            --shadow-md: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --header-height: 56px;
+            --max-width: 800px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+        }
+
+        .page-bg span {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 28vw;
+            font-weight: 900;
+            color: rgba(0,0,0,0.08);
+            letter-spacing: 0.08em;
+            line-height: 0.85;
+            white-space: nowrap;
+            transform: scaleY(1.3);
+            transform-origin: bottom center;
+        }
+
+        header {
+            background-color: #0d2137;
+            box-shadow: var(--shadow-sm);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 16px 20px;
+            position: sticky;
+            top: 0;
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        #refresh-btn {
+            position: absolute;
+            right: 12px;
+            font-size: 1.3rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #8888a0;
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            line-height: 1;
+        }
+
+        #refresh-btn:hover {
+            color: #c0c0d0;
+        }
+
+        #content {
+            flex: 1;
+            padding: 16px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .columns {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .column {
+            flex: 1;
+            min-width: 0;
+        }
+
+        @media (max-width: 768px) {
+            .columns {
+                flex-direction: column;
+            }
+        }
+
+        .group {
+            display: flex;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+
+        .group-label-wrap {
+            flex: 0 0 100px;
+            width: 100px;
+            margin-top: 10px;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25));
+        }
+
+        .group-label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #ffffff;
+            padding: 4px 16px 4px 10px;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .group-sites {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .site-item {
+            padding: 9px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 6px 8px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(0,0,0,0.12);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            transition: box-shadow 0.15s ease, transform 0.1s ease;
+            cursor: default;
+        }
+
+        .site-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+
+        .site-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .site-name:hover {
+            color: var(--primary-color);
+        }
+
+        .site-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        a.site-desc:hover {
+            color: var(--primary-color);
+        }
+
+        footer {
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 12px 16px;
+        }
+
+        footer span {
+            display: block;
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 40px 16px;
+            color: var(--text-secondary);
+        }
+
+        .retry-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .retry-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .auth-btn {
+            margin-top: 12px;
+            padding: 10px 24px;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .auth-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        @media (max-width: 600px) {
+            #content {
+                padding: 12px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Portal Site Zero</h1>
+        <button id="refresh-btn" title="Refresh">⟳</button>
+    </header>
+    <div class="page-bg"><span>psØ</span></div>
+    <main id="content"></main>
+    <footer>
+        <span>Portal Site Zero</span>
+        <span>Last loaded: <time id="timestamp">--:--:--</time></span>
+    </footer>
+    <script>
+    var dirHandle = null;
+    var isFileProtocol = (location.protocol === 'file:');
+    var supportsFS = ('showDirectoryPicker' in window);
+
+    function parseSitesMd(text) {
+        var groups = [];
+        var currentGroup = null;
+        var currentSite = null;
+        var lines = text.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+            var trimmed = lines[i].trim();
+            var groupMatch = trimmed.match(/^# (.+)$/);
+            if (groupMatch) {
+                var rawName = groupMatch[1].trim();
+                var col = '';
+                var colMatch = rawName.match(/\s*\[(L|R)\]\s*$/i);
+                if (colMatch) {
+                    col = colMatch[1].toUpperCase();
+                    rawName = rawName.replace(/\s*\[(L|R)\]\s*$/i, '').trim();
+                }
+                currentGroup = { name: rawName, sites: [], col: col };
+                groups.push(currentGroup);
+                currentSite = null;
+                continue;
+            }
+            var siteMatch = trimmed.match(/^## (.+)$/);
+            if (siteMatch) {
+                if (!currentGroup) {
+                    currentGroup = { name: '', sites: [] };
+                    groups.push(currentGroup);
+                }
+                currentSite = { name: siteMatch[1].trim() };
+                currentGroup.sites.push(currentSite);
+                continue;
+            }
+            var fieldMatch = trimmed.match(/^- (url|source|desc):\s*(.+)$/i);
+            if (fieldMatch && currentSite) {
+                currentSite[fieldMatch[1].toLowerCase()] = fieldMatch[2].trim();
+                continue;
+            }
+        }
+        for (var g = 0; g < groups.length; g++) {
+            groups[g].sites = groups[g].sites.filter(function(s) {
+                return s.url && /^https?:\/\//i.test(s.url);
+            });
+        }
+        return groups.filter(function(g) { return g.sites.length > 0; });
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function sanitizeUrl(url) {
+        return /^https?:\/\//i.test(url) ? url : '';
+    }
+
+    // Color palette per group: [row-dark, row-light, label-bg]
+    var groupColors = [
+        ['#d2e3fc', '#e8f0fe', '#1a73e8'],  // blue
+        ['#ceead6', '#e6f4ea', '#34a853'],  // green
+        ['#feefc3', '#fef7e0', '#e8a000'],  // yellow
+        ['#f8d7da', '#fce8e6', '#d93025'],  // red
+        ['#e8d5f5', '#f3e8fd', '#9334e6'],  // purple
+        ['#b2ebf2', '#e0f7fa', '#00897b'],  // cyan
+    ];
+
+    function renderGroup(group, colorIdx) {
+        var colors = groupColors[colorIdx % groupColors.length];
+        var html = '<div class="group">';
+        html += '<div class="group-label-wrap"><div class="group-label" style="background:' + colors[2] + '">' + escapeHtml(group.name || '') + '</div></div>';
+        html += '<div class="group-sites">';
+        for (var s = 0; s < group.sites.length; s++) {
+            var site = group.sites[s];
+            var bg = colors[s % 2];
+            html += '<div class="site-item" style="background:' + bg + '">';
+            html += '<a class="site-name" href="' + escapeHtml(site.url) + '" target="_blank" rel="noopener">' + escapeHtml(site.name) + '</a>';
+            if (site.desc) {
+                if (site.source && sanitizeUrl(site.source)) {
+                    html += '<a class="site-desc" href="' + escapeHtml(site.source) + '" target="_blank" rel="noopener">' + escapeHtml(site.desc) + '</a>';
+                } else {
+                    html += '<span class="site-desc">' + escapeHtml(site.desc) + '</span>';
+                }
+            }
+            html += '</div>';
+        }
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderSites(groups) {
+        var content = document.getElementById('content');
+        if (!groups || groups.length === 0) {
+            content.innerHTML = '<div class="error-message"><p>No sites configured.</p>'
+                + '<p>Edit <code>sites.md</code> to add your services.</p></div>';
+            return;
+        }
+        var left = [];
+        var right = [];
+        var autoIdx = 0;
+        for (var g = 0; g < groups.length; g++) {
+            var group = groups[g];
+            if (group.col === 'L') {
+                left.push({ group: group, colorIdx: g });
+            } else if (group.col === 'R') {
+                right.push({ group: group, colorIdx: g });
+            } else {
+                if (autoIdx % 2 === 0) {
+                    left.push({ group: group, colorIdx: g });
+                } else {
+                    right.push({ group: group, colorIdx: g });
+                }
+                autoIdx++;
+            }
+        }
+        var html = '<div class="columns"><div class="column">';
+        for (var i = 0; i < left.length; i++) {
+            html += renderGroup(left[i].group, left[i].colorIdx);
+        }
+        html += '</div><div class="column">';
+        for (var j = 0; j < right.length; j++) {
+            html += renderGroup(right[j].group, right[j].colorIdx);
+        }
+        html += '</div></div>';
+        content.innerHTML = html;
+    }
+
+    function updateTimestamp() {
+        var now = new Date();
+        var ts = [now.getHours(), now.getMinutes(), now.getSeconds()]
+            .map(function(n) { return String(n).padStart(2, '0'); }).join(':');
+        document.getElementById('timestamp').textContent = ts;
+    }
+
+    // IndexedDB for directory handle persistence
+    function openDB() {
+        return new Promise(function(resolve, reject) {
+            var req = indexedDB.open('PS0', 1);
+            req.onupgradeneeded = function() { req.result.createObjectStore('handles'); };
+            req.onsuccess = function() { resolve(req.result); };
+            req.onerror = function() { reject(req.error); };
+        });
+    }
+
+    async function saveHandleToDB(handle) {
+        try {
+            var db = await openDB();
+            var tx = db.transaction('handles', 'readwrite');
+            tx.objectStore('handles').put(handle, 'dirHandle');
+            await new Promise(function(r, j) { tx.oncomplete = r; tx.onerror = j; });
+        } catch (e) { /* silent */ }
+    }
+
+    async function loadHandleFromDB() {
+        try {
+            var db = await openDB();
+            var tx = db.transaction('handles', 'readonly');
+            var req = tx.objectStore('handles').get('dirHandle');
+            return new Promise(function(r) {
+                req.onsuccess = function() { r(req.result || null); };
+                req.onerror = function() { r(null); };
+            });
+        } catch (e) { return null; }
+    }
+
+    // Read sites.md from authorized directory handle
+    async function readSitesMdFromDir(handle) {
+        var fileHandle = await handle.getFileHandle('sites.md');
+        var file = await fileHandle.getFile();
+        return await file.text();
+    }
+
+    // Show authorize prompt for file:// mode
+    function showAuthPrompt() {
+        var content = document.getElementById('content');
+        content.innerHTML = '<div class="error-message">'
+            + '<p>Authorize directory access to load <code>sites.md</code></p>'
+            + '<button class="auth-btn" id="auth-btn">Authorize</button>'
+            + '</div>';
+        document.getElementById('auth-btn').addEventListener('click', authorizeAndLoad);
+    }
+
+    async function authorizeAndLoad() {
+        try {
+            var handle = await window.showDirectoryPicker({ mode: 'read' });
+            dirHandle = handle;
+            await saveHandleToDB(handle);
+            await loadSitesFromDir();
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                var content = document.getElementById('content');
+                content.innerHTML = '<div class="error-message">'
+                    + '<div>' + escapeHtml(e.message) + '</div>'
+                    + '<button class="retry-btn" onclick="showAuthPrompt()">Retry</button>'
+                    + '</div>';
+            }
+        }
+    }
+
+    async function loadSitesFromDir() {
+        var content = document.getElementById('content');
+        try {
+            var text = await readSitesMdFromDir(dirHandle);
+            var groups = parseSitesMd(text);
+            renderSites(groups);
+        } catch (err) {
+            content.innerHTML = '<div class="error-message">'
+                + '<div>Failed to read sites.md from directory</div>'
+                + '<p>Ensure <code>sites.md</code> exists in the authorized directory.</p>'
+                + '<button class="retry-btn" onclick="loadSitesFromDir()">Retry</button>'
+                + '</div>';
+        }
+        updateTimestamp();
+    }
+
+    async function loadSitesViaFetch() {
+        var content = document.getElementById('content');
+        try {
+            var response = await fetch('sites.md', { cache: 'no-cache' });
+            if (!response.ok) throw new Error(response.status);
+            var text = await response.text();
+            var groups = parseSitesMd(text);
+            renderSites(groups);
+        } catch (err) {
+            content.innerHTML = '<div class="error-message">'
+                + '<div>Failed to load sites.md</div>'
+                + '<button class="retry-btn" onclick="loadSitesViaFetch()">Retry</button>'
+                + '</div>';
+        }
+        updateTimestamp();
+    }
+
+    async function loadSites() {
+        if (!isFileProtocol) {
+            return loadSitesViaFetch();
+        }
+        if (dirHandle) {
+            return loadSitesFromDir();
+        }
+        // file:// without handle: try restoring from IndexedDB
+        if (supportsFS) {
+            var saved = await loadHandleFromDB();
+            if (saved) {
+                try {
+                    var perm = await saved.queryPermission({ mode: 'read' });
+                    if (perm === 'granted') {
+                        dirHandle = saved;
+                        return loadSitesFromDir();
+                    }
+                    // Permission not granted, need re-auth
+                } catch (e) { /* handle expired */ }
+            }
+            showAuthPrompt();
+        } else {
+            // Browser doesn't support File System Access API
+            document.getElementById('content').innerHTML = '<div class="error-message">'
+                + '<p>This browser does not support local file access.</p>'
+                + '<p>Serve via HTTP: <code>python3 -m http.server</code></p>'
+                + '</div>';
+            updateTimestamp();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSites();
+        document.getElementById('refresh-btn').addEventListener('click', loadSites);
+    });
+    </script>
+</body>
+</html>

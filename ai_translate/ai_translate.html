@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src http://localhost:* http://127.0.0.1:* http://10.* http://172.16.* http://172.17.* http://172.18.* http://172.19.* http://172.20.* http://172.21.* http://172.22.* http://172.23.* http://172.24.* http://172.25.* http://172.26.* http://172.27.* http://172.28.* http://172.29.* http://172.30.* http://172.31.* http://192.168.*; img-src 'none'; font-src 'none'; frame-src 'none';">
+    <title>AI Translate</title>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-hover: #1765cc;
+            --bg-color: #ffffff;
+            --surface-color: #f1f3f4;
+            --border-color: #dadce0;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --danger-color: #d93025;
+            --success-color: #188038;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            --shadow-sm: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            --shadow-md: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --header-height: 64px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--surface-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Icons */
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        .icon-sm {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-color);
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .app-title span {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        button.icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.icon-btn:hover {
+            background-color: rgba(60,64,67,0.08);
+            color: var(--text-primary);
+        }
+
+        /* Language Selector Bar */
+        .lang-bar {
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+            height: 56px; /* slightly taller for better tap targets */
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centered layout like Google Translate */
+            gap: 16px;
+            z-index: 9;
+        }
+
+        .lang-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .lang-tab {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px; /* subtle rect */
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .lang-tab:hover {
+            background-color: rgba(60,64,67,0.04);
+            color: var(--text-primary);
+        }
+
+        .lang-tab.active {
+            color: var(--primary-color);
+            background-color: rgba(26, 115, 232, 0.08); /* subtle blue tint */
+        }
+        
+        .lang-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: var(--primary-color);
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+
+        .swap-btn {
+            background-color: #ffe0d6;
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .swap-btn:hover {
+            background-color: #ffd0c0;
+            transform: rotate(180deg);
+            color: var(--text-primary);
+        }
+
+        /* Main Translation Area */
+        main {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .panels-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .panel {
+            flex: 1;
+            background-color: var(--bg-color);
+            border: 1px solid #bdbdbd;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: box-shadow 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        #target-panel {
+            background-color: #e8f5e9;
+            text-align: left;
+        }
+
+        .panel:focus-within {
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+            border-color: #9e9e9e;
+        }
+
+        .panel-toolbar {
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        #source-panel .panel-toolbar {
+            justify-content: flex-end;
+        }
+
+        #target-panel .panel-toolbar {
+            justify-content: flex-start;
+        }
+
+        .panel-content {
+            padding: 16px 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 60px;
+            border: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 20px;
+            color: var(--text-primary);
+            background: transparent;
+            outline: none;
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        .output-div {
+            width: 100%;
+            min-height: 60px;
+            font-size: 20px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow: visible;
+            background: transparent;
+            text-align: left;
+        }
+
+        .output-placeholder {
+            color: var(--text-secondary);
+        }
+
+        .loading-dots {
+            color: var(--text-secondary);
+            font-size: 24px;
+            letter-spacing: 4px;
+        }
+        .loading-dots span {
+            animation: blink 1.4s infinite;
+            opacity: 0.2;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        .action-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Translate Button */
+        .translate-container {
+            display: flex;
+            justify-content: center;
+            padding: 16px 0;
+        }
+
+        /* Primary action button styling */
+        .translate-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(26, 115, 232, 0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .translate-btn:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 6px 8px rgba(26, 115, 232, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .translate-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(26, 115, 232, 0.3);
+        }
+
+        .translate-btn:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Modals */
+        dialog {
+            border: 1px solid #bdbdbd;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            margin: auto;
+        }
+        
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Form elements in modal */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            color: var(--danger-color);
+            border-color: currentColor;
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(217, 48, 37, 0.08);
+        }
+
+        /* History List */
+        .history-list {
+            list-style: none;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: grid;
+            grid-template-columns: 1fr 40px;
+            gap: 12px;
+        }
+
+        .history-item:hover {
+            background-color: rgba(0,0,0,0.03);
+        }
+
+        .history-info {
+            min-width: 0;
+        }
+
+        .history-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .history-content {
+            font-size: 14px;
+            color: var(--text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-all;
+        }
+
+        /* Lang Chip */
+        .lang-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 13px;
+            margin: 2px;
+        }
+        .lang-chip button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .lang-chip button:hover {
+            color: var(--danger-color);
+        }
+
+        .history-actions {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            main {
+                padding: 12px;
+            }
+
+            .panels-row {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .translate-container {
+                padding: 12px 0;
+            }
+            
+            .header-actions {
+                gap: 4px;
+            }
+            
+            .lang-bar {
+                padding: 0 12px;
+                gap: 8px;
+                overflow-x: auto;
+                justify-content: flex-start;
+            }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #323232;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Error state in output */
+        .error-text {
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="app-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+        <span>爱翻译 AI Translate</span>
+    </div>
+    <div class="header-actions">
+        <button class="icon-btn" id="history-btn" title="历史 History">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="设置 Settings">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84a.484.484 0 00-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 00-.59.22L2.74 8.87a.49.49 0 00.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32a.488.488 0 00.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96a.488.488 0 00.59-.22l1.92-3.32a.49.49 0 00-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+    </div>
+</header>
+
+<div class="lang-bar">
+    <div class="lang-group" id="source-langs">
+        <!-- Injected via JS -->
+    </div>
+    
+    <button class="swap-btn" id="swap-lang-btn" title="互换语言 Swap">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+    </button>
+    
+    <div class="lang-group" id="target-langs">
+        <!-- Injected via JS -->
+    </div>
+</div>
+
+<main>
+<div class="panels-row">
+    <section class="panel" id="source-panel">
+        <div class="panel-toolbar">
+            <div class="action-group">
+                <button class="icon-btn" id="copy-source-btn" title="复制 Copy">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+                <button class="icon-btn" id="paste-btn" title="粘贴 Paste">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
+                </button>
+                <span class="char-count" id="char-count">0/5000</span>
+                <button class="icon-btn" id="clear-text-btn" title="清除 Clear">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="panel-content">
+            <textarea id="source-text" placeholder="输入文本 Enter text" maxlength="5000"></textarea>
+        </div>
+    </section>
+
+    <section class="panel" id="target-panel">
+        <div class="panel-toolbar">
+            <div class="action-group">
+                <button class="icon-btn" id="copy-target-btn" title="复制翻译 Copy">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="panel-content">
+            <div id="target-text" class="output-div"><span class="output-placeholder">翻译结果</span></div>
+        </div>
+    </section>
+</div>
+
+    <div class="translate-container">
+        <button id="translate-btn" class="translate-btn">
+            <span class="btn-text">翻译 Translate</span>
+            <div class="spinner" style="display: none;"></div>
+        </button>
+    </div>
+</main>
+
+<footer>
+    本地 AI 驱动 Powered by local AI
+</footer>
+
+<!-- CORS Warning Banner (shown only when opened via file://) -->
+<div id="cors-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:1000; background:#fef7e0; border-bottom:2px solid #f9ab00; padding:12px 24px; font-size:14px; color:#3c4043;">
+    <div style="max-width:900px; margin:0 auto; display:flex; align-items:flex-start; gap:12px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#f9ab00" style="flex-shrink:0; margin-top:2px;"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        <div style="flex:1;">
+            <strong>CORS Error — 浏览器拦截了对本地 API 的请求</strong><br>
+            直接双击打开 HTML（file:// 协议）时，浏览器发送 <code style="background:#e8eaed; padding:1px 4px; border-radius:3px; font-size:12px;">Origin: null</code>，被 Ollama/LM Studio CORS 策略拒绝。<br>
+            <span style="margin-top:6px; display:inline-block;">
+                <strong>方法一（推荐）：</strong>允许 Ollama 跨域，终端执行后重启 Ollama：<br>
+                <code style="background:#e8eaed; padding:2px 6px; border-radius:4px; font-size:13px; display:inline-block; margin:4px 0;">launchctl setenv OLLAMA_ORIGINS "*"</code><br>
+                <strong>方法二：</strong>用 HTTP 服务打开 → <code style="background:#e8eaed; padding:2px 6px; border-radius:4px; font-size:13px;">python3 -m http.server 8080</code>
+                然后访问 <a href="http://localhost:8080" style="color:#1a73e8;">http://localhost:8080</a>
+            </span>
+        </div>
+        <button id="close-cors-banner" style="background:none; border:none; cursor:pointer; color:#5f6368; font-size:20px; line-height:1; padding:4px;">✕</button>
+    </div>
+</div>
+
+<div id="toast" class="toast">已复制 Copied!</div>
+
+<!-- Settings Modal -->
+<dialog id="settings-modal">
+    <div class="modal-header">
+        <h3 class="modal-title">设置 Settings</h3>
+        <button class="icon-btn" id="close-settings">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="form-group">
+            <label class="form-label">后端服务 Backend</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="backend" value="ollama" checked> Ollama
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="backend" value="lmstudio"> LM Studio
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group" id="ollama-config">
+            <label class="form-label">Ollama 地址 Endpoint</label>
+            <input type="text" class="form-input" id="ollama-url" value="http://localhost:11434">
+        </div>
+
+        <div class="form-group" id="lmstudio-config" style="display:none">
+            <label class="form-label">LM Studio 地址 Endpoint</label>
+            <input type="text" class="form-input" id="lmstudio-url" value="http://localhost:1234">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">翻译模型 Model</label>
+            <div style="display: flex; gap: 8px;">
+                <select class="form-select" id="model-select">
+                    <option value="" disabled selected>选择模型 Select a model...</option>
+                </select>
+                <button class="btn" id="refresh-models-btn" title="刷新模型 Refresh">↻</button>
+            </div>
+            <div id="model-error" class="error-text" style="font-size: 12px; margin-top: 4px;"></div>
+            <small style="color: var(--text-secondary); margin-top: 4px; display: block;">
+                点击刷新从后端获取模型列表 Click refresh to fetch models.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">自定义语言 Custom Languages</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" class="form-input" id="new-lang-input" placeholder="e.g. Deutsch, Français, 한국어">
+                <button class="btn" id="add-lang-btn">+ Add</button>
+            </div>
+            <div id="custom-langs-list" style="display: flex; flex-wrap: wrap; gap: 4px;"></div>
+            <small style="color: var(--text-secondary); margin-top: 4px; display: block;">
+                添加后可在语言栏中选择 / Added languages appear in the language selector bar.
+            </small>
+        </div>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn" id="reset-config-btn" style="color: #d93025;">重置配置 Reset</button>
+        <button class="btn btn-primary" id="save-settings">保存 Save</button>
+    </div>
+</dialog>
+
+<!-- History Modal -->
+<dialog id="history-modal">
+    <div class="modal-header">
+        <h3 class="modal-title">翻译历史 History</h3>
+        <button class="icon-btn" id="close-history">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body" style="padding: 0;">
+        <div id="history-container">
+            <!-- Items go here -->
+        </div>
+        <div id="empty-history" style="padding: 24px; text-align: center; color: var(--text-secondary); display: none;">
+            暂无记录 No history yet.
+        </div>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-danger" id="clear-history">清除全部 Clear All</button>
+        <button class="btn" id="close-history-btn">关闭 Close</button>
+    </div>
+</dialog>
+
+<template id="history-item-template">
+    <div class="history-item">
+        <div class="history-info">
+            <div class="history-meta"></div>
+            <div class="history-content"></div>
+        </div>
+        <div class="history-actions">
+            <button class="icon-btn delete-item" title="Delete">
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+        </div>
+    </div>
+</template>
+
+<script>
+    // --- Security Helpers ---
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function sanitizeUrl(url) {
+        try {
+            const u = new URL(url);
+            if (!['http:', 'https:'].includes(u.protocol)) return null;
+            return u.origin + u.pathname.replace(/\/+$/, '');
+        } catch { return null; }
+    }
+
+    // --- State & Config ---
+    const STATE = {
+        config: {
+            backend: 'ollama', // 'ollama' or 'lmstudio'
+            ollamaUrl: 'http://localhost:11434',
+            lmStudioUrl: 'http://localhost:1234',
+            model: '',
+            customLanguages: []
+        },
+        history: [],
+            currentPair: {
+                source: 'en',
+                target: 'zh-CN'
+        }
+    };
+
+    const LANGUAGES = [
+        { code: 'en', name: 'English', placeholder: 'Translation' },
+        { code: 'zh-CN', name: '简体中文', placeholder: '翻译结果' },
+        { code: 'zh-TW', name: '繁體中文', placeholder: '翻譯結果' },
+        { code: 'ja', name: '日本語', placeholder: '翻訳結果' }
+    ];
+
+    function getAllLanguages() {
+        return [...LANGUAGES, ...(STATE.config.customLanguages || [])];
+    }
+
+    function getTargetPlaceholder() {
+        const lang = getAllLanguages().find(l => l.code === STATE.currentPair.target);
+        if (!lang) return '翻译结果';
+        return lang.placeholder || lang.name;
+    }
+
+    function setTargetPlaceholder() {
+        const span = document.createElement('span');
+        span.className = 'output-placeholder';
+        span.textContent = getTargetPlaceholder();
+        els.targetText.innerHTML = '';
+        els.targetText.appendChild(span);
+    }
+
+    function updateTargetPlaceholder() {
+        const ph = els.targetText.querySelector('.output-placeholder');
+        if (ph) {
+            ph.textContent = getTargetPlaceholder();
+        }
+    }
+
+    // --- DOM Elements ---
+    const els = {
+        sourceText: document.getElementById('source-text'),
+        targetText: document.getElementById('target-text'),
+        charCount: document.getElementById('char-count'),
+        translateBtn: document.getElementById('translate-btn'),
+        translateBtnText: document.querySelector('#translate-btn .btn-text'),
+        spinner: document.querySelector('#translate-btn .spinner'),
+        settingsModal: document.getElementById('settings-modal'),
+        historyModal: document.getElementById('history-modal'),
+        modelSelect: document.getElementById('model-select'),
+        ollamaUrlInput: document.getElementById('ollama-url'),
+        lmStudioUrlInput: document.getElementById('lmstudio-url'),
+        backendRadios: document.getElementsByName('backend'),
+        sourceLangs: document.getElementById('source-langs'),
+        targetLangs: document.getElementById('target-langs'),
+        toast: document.getElementById('toast')
+    };
+
+    // --- Initialization ---
+    function init() {
+        loadState();
+        setupEventListeners();
+        renderLanguageSelectors();
+        updateTargetPlaceholder();
+        updateCharCount();
+        // Auto-refresh models if none selected but backend configured
+        if (!STATE.config.model) {
+            fetchModels().catch(() => {}); // silent fail on init
+        } else {
+            // Populate select if model exists in state
+            const opt = document.createElement('option');
+            opt.value = STATE.config.model;
+            opt.textContent = STATE.config.model;
+            opt.selected = true;
+            els.modelSelect.appendChild(opt);
+        }
+        // Check CORS environment after a short delay to let the page render first
+        checkCorsEnvironment();
+    }
+
+    function checkCorsEnvironment() {
+        if (window.location.protocol !== 'file:') return;
+        const backend = Array.from(els.backendRadios).find(r => r.checked).value;
+        const baseUrl = backend === 'ollama' ? els.ollamaUrlInput.value : els.lmStudioUrlInput.value;
+        fetch(`${baseUrl}/`, { method: 'HEAD' }).catch(() => {
+            document.getElementById('cors-banner').style.display = 'block';
+        });
+    }
+
+    function loadState() {
+        const savedConfig = localStorage.getItem('ai_translate_config');
+        if (savedConfig) {
+            STATE.config = { ...STATE.config, ...JSON.parse(savedConfig) };
+        }
+        
+        const savedHistory = localStorage.getItem('ai_translate_history');
+        if (savedHistory) {
+            STATE.history = JSON.parse(savedHistory);
+        }
+
+        // Language pair always resets to default (English → 简体中文) on page load
+        // Not restored from localStorage
+
+        // Apply config to UI
+        els.ollamaUrlInput.value = STATE.config.ollamaUrl;
+        els.lmStudioUrlInput.value = STATE.config.lmStudioUrl;
+        
+        for (const radio of els.backendRadios) {
+            if (radio.value === STATE.config.backend) {
+                radio.checked = true;
+            }
+        }
+        toggleBackendConfig(STATE.config.backend);
+    }
+
+    function saveState() {
+        localStorage.setItem('ai_translate_config', JSON.stringify(STATE.config));
+        localStorage.setItem('ai_translate_history', JSON.stringify(STATE.history));
+    }
+
+    // --- Event Listeners ---
+    function setupEventListeners() {
+        // CORS banner close
+        document.getElementById('close-cors-banner').addEventListener('click', function() {
+            document.getElementById('cors-banner').style.display = 'none';
+        });
+
+        // Text Input — auto-resize textarea
+        els.sourceText.addEventListener('input', () => {
+            updateCharCount();
+            autoResizeTextarea();
+        });
+        
+        // Toolbar Buttons
+        document.getElementById('clear-text-btn').addEventListener('click', () => {
+            els.sourceText.value = '';
+            setTargetPlaceholder();
+            updateCharCount();
+            autoResizeTextarea();
+            els.sourceText.focus();
+        });
+
+        document.getElementById('paste-btn').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text) return;
+                els.sourceText.value = text.substring(0, 5000);
+                updateCharCount();
+                autoResizeTextarea();
+                els.sourceText.focus();
+                performTranslation();
+            } catch (err) {
+                showToast('粘贴失败 Paste failed');
+            }
+        });
+
+        document.getElementById('copy-source-btn').addEventListener('click', () => copyToClipboard(els.sourceText.value));
+        document.getElementById('copy-target-btn').addEventListener('click', () => {
+            // Get text content excluding HTML tags if any (though we use textContent mostly)
+            const text = els.targetText.innerText;
+            if(text && !els.targetText.querySelector('.output-placeholder')) copyToClipboard(text);
+        });
+
+        // Swap
+        document.getElementById('swap-lang-btn').addEventListener('click', swapLanguages);
+
+        // Translate
+        els.translateBtn.addEventListener('click', performTranslation);
+
+        // Settings Modal
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            renderCustomLangs(); // Show current custom langs
+            els.settingsModal.showModal();
+        });
+        document.getElementById('close-settings').addEventListener('click', () => els.settingsModal.close());
+        document.getElementById('save-settings').addEventListener('click', () => {
+            saveConfigFromUI();
+            els.settingsModal.close();
+        });
+
+        document.getElementById('reset-config-btn').addEventListener('click', () => {
+            if (confirm('确认重置所有配置？历史记录也会清除。\nReset all settings? History will also be cleared.')) {
+                localStorage.removeItem('ai_translate_config');
+                localStorage.removeItem('ai_translate_pair');
+                localStorage.removeItem('ai_translate_history');
+                location.reload();
+            }
+        });
+
+        // Add Custom Language
+        document.getElementById('add-lang-btn').addEventListener('click', addCustomLang);
+        document.getElementById('new-lang-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addCustomLang();
+        });
+
+        // Backend Toggle
+        Array.from(els.backendRadios).forEach(radio => {
+            radio.addEventListener('change', (e) => toggleBackendConfig(e.target.value));
+        });
+
+        document.getElementById('refresh-models-btn').addEventListener('click', fetchModels);
+
+        // History Modal
+        document.getElementById('history-btn').addEventListener('click', () => {
+            renderHistory();
+            els.historyModal.showModal();
+        });
+        document.getElementById('close-history').addEventListener('click', () => els.historyModal.close());
+        document.getElementById('close-history-btn').addEventListener('click', () => els.historyModal.close());
+        
+        const clearBtn = document.getElementById('clear-history');
+        clearBtn.addEventListener('click', () => {
+            if (clearBtn.textContent === '清除全部 Clear All') {
+                clearBtn.textContent = '确认清除? Confirm?';
+                setTimeout(() => {
+                    if (clearBtn.textContent === '确认清除? Confirm?') {
+                        clearBtn.textContent = '清除全部 Clear All';
+                    }
+                }, 3000);
+            } else {
+                STATE.history = [];
+                saveState();
+                renderHistory();
+                clearBtn.textContent = '清除全部 Clear All';
+                showToast('已清除 Cleared');
+            }
+        });
+    }
+
+    function toggleBackendConfig(backend) {
+        document.getElementById('ollama-config').style.display = backend === 'ollama' ? 'block' : 'none';
+        document.getElementById('lmstudio-config').style.display = backend === 'lmstudio' ? 'block' : 'none';
+    }
+
+    function updateCharCount() {
+        const len = els.sourceText.value.length;
+        els.charCount.textContent = `${len}/5000`;
+    }
+
+    function autoResizeTextarea() {
+        const ta = els.sourceText;
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+    }
+
+    function showToast(msg) {
+        els.toast.textContent = msg;
+        els.toast.classList.add('show');
+        setTimeout(() => els.toast.classList.remove('show'), 2000);
+    }
+
+    function copyToClipboard(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('✓ 已复制 Copied');
+        });
+    }
+
+    // --- Custom Languages ---
+    function renderCustomLangs() {
+        const container = document.getElementById('custom-langs-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (!STATE.config.customLanguages || STATE.config.customLanguages.length === 0) {
+            container.innerHTML = '<span style="color:var(--text-secondary); font-size:13px; font-style:italic;">None</span>';
+            return;
+        }
+
+        STATE.config.customLanguages.forEach((lang, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'lang-chip';
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = lang.name;
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.addEventListener('click', () => deleteCustomLang(index));
+            chip.appendChild(nameSpan);
+            chip.appendChild(delBtn);
+            container.appendChild(chip);
+        });
+    }
+
+    function addCustomLang() {
+        const input = document.getElementById('new-lang-input');
+        const name = input.value.trim();
+        if (!name) return;
+
+        const code = 'custom-' + name.toLowerCase().replace(/\s+/g, '-');
+        
+        // Check duplicates
+        const all = getAllLanguages();
+        if (all.some(l => l.name.toLowerCase() === name.toLowerCase() || l.code === code)) {
+            showToast('Language already exists');
+            return;
+        }
+
+        if (!STATE.config.customLanguages) STATE.config.customLanguages = [];
+        STATE.config.customLanguages.push({ code, name });
+        
+        saveState();
+        renderCustomLangs();
+        renderLanguageSelectors();
+        input.value = '';
+    }
+
+    function deleteCustomLang(index) {
+        if (!STATE.config.customLanguages) return;
+        const deleted = STATE.config.customLanguages[index];
+        STATE.config.customLanguages.splice(index, 1);
+        
+        // Reset if selected
+        if (STATE.currentPair.source === deleted.code) STATE.currentPair.source = 'en';
+        if (STATE.currentPair.target === deleted.code) STATE.currentPair.target = 'zh-CN';
+
+        saveState();
+        renderCustomLangs();
+        renderLanguageSelectors();
+    }
+
+    // --- Language Logic ---
+    function renderLanguageSelectors() {
+        // Clear
+        els.sourceLangs.innerHTML = '';
+        els.targetLangs.innerHTML = '';
+
+        const allLangs = getAllLanguages();
+
+        // Render Source
+        allLangs.forEach(lang => {
+            const btn = document.createElement('button');
+            btn.className = `lang-tab ${STATE.currentPair.source === lang.code ? 'active' : ''}`;
+            btn.textContent = lang.name;
+            btn.onclick = () => setLanguage('source', lang.code);
+            els.sourceLangs.appendChild(btn);
+        });
+
+        // Render Target
+        allLangs.forEach(lang => {
+            const btn = document.createElement('button');
+            btn.className = `lang-tab ${STATE.currentPair.target === lang.code ? 'active' : ''}`;
+            btn.textContent = lang.name;
+            btn.onclick = () => setLanguage('target', lang.code);
+            els.targetLangs.appendChild(btn);
+        });
+    }
+
+    function setLanguage(side, code) {
+        if (side === 'source') {
+            if (STATE.currentPair.target === code) {
+                // If selecting same as target, swap
+                swapLanguages();
+                return;
+            }
+            STATE.currentPair.source = code;
+        } else {
+            if (STATE.currentPair.source === code) {
+                swapLanguages();
+                return;
+            }
+            STATE.currentPair.target = code;
+        }
+        saveState();
+        renderLanguageSelectors();
+        updateTargetPlaceholder();
+        if (els.sourceText.value.trim()) {
+            performTranslation();
+        }
+    }
+
+    function swapLanguages() {
+        // Swap codes
+        const tempLang = STATE.currentPair.source;
+        STATE.currentPair.source = STATE.currentPair.target;
+        STATE.currentPair.target = tempLang;
+
+        // Swap text
+        const sourceVal = els.sourceText.value;
+        const targetVal = els.targetText.innerText;
+
+        // Only swap if target has valid translation
+        if (targetVal && targetVal !== 'Translation' && targetVal !== '翻译结果 Translation' && !els.targetText.querySelector('.error-text') && !els.targetText.querySelector('.output-placeholder')) {
+            els.sourceText.value = targetVal;
+            setTargetPlaceholder();
+        }
+
+        saveState();
+        renderLanguageSelectors();
+        updateTargetPlaceholder();
+        updateCharCount();
+        autoResizeTextarea();
+
+        // Auto-translate if source has content (skip history for swap)
+        if (els.sourceText.value.trim()) {
+            performTranslation({ skipHistory: true });
+        }
+    }
+
+    // --- API & Translation ---
+    function saveConfigFromUI() {
+        STATE.config.backend = Array.from(els.backendRadios).find(r => r.checked).value;
+        const ollamaUrl = sanitizeUrl(els.ollamaUrlInput.value);
+        const lmStudioUrl = sanitizeUrl(els.lmStudioUrlInput.value);
+        if (!ollamaUrl && els.ollamaUrlInput.value) {
+            showToast('Ollama 地址无效 Invalid URL');
+            return;
+        }
+        if (!lmStudioUrl && els.lmStudioUrlInput.value) {
+            showToast('LM Studio 地址无效 Invalid URL');
+            return;
+        }
+        STATE.config.ollamaUrl = ollamaUrl || STATE.config.ollamaUrl;
+        STATE.config.lmStudioUrl = lmStudioUrl || STATE.config.lmStudioUrl;
+        STATE.config.model = els.modelSelect.value;
+        saveState();
+    }
+
+    async function fetchModels() {
+        // Ensure we grab latest from UI before fetch
+        const backend = Array.from(els.backendRadios).find(r => r.checked).value;
+        const baseUrl = backend === 'ollama' ? els.ollamaUrlInput.value : els.lmStudioUrlInput.value;
+        const btn = document.getElementById('refresh-models-btn');
+        
+        btn.textContent = '...';
+        btn.disabled = true;
+
+        try {
+            let models = [];
+            if (backend === 'ollama') {
+                const res = await fetch(`${baseUrl}/api/tags`);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+                models = data.models.map(m => m.name);
+            } else {
+                const res = await fetch(`${baseUrl}/v1/models`);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+                models = data.data.map(m => m.id);
+            }
+
+            // Populate Select
+            els.modelSelect.innerHTML = '<option value="" disabled>Select a model...</option>';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (m === STATE.config.model) opt.selected = true;
+                els.modelSelect.appendChild(opt);
+            });
+            
+            // If no model selected previously and we have models, select first
+            if (!STATE.config.model && models.length > 0) {
+                els.modelSelect.value = models[0];
+            }
+            
+            showToast(`找到 ${models.length} 个模型 / Found ${models.length} models`);
+            document.getElementById('model-error').textContent = '';
+
+        } catch (e) {
+            console.error(e);
+            const isCors = window.location.protocol === 'file:' && e instanceof TypeError && e.message === 'Failed to fetch';
+            if (isCors) {
+                document.getElementById('model-error').textContent = 'CORS blocked — see banner for fix. (请查看上方横幅解决 CORS 问题)';
+                document.getElementById('cors-banner').style.display = 'block';
+            } else {
+                document.getElementById('model-error').textContent = `Error: ${e.message}. Is the server running? (服务未启动?)`;
+            }
+        } finally {
+            btn.textContent = '↻';
+            btn.disabled = false;
+        }
+    }
+
+    async function performTranslation(opts = {}) {
+        const text = els.sourceText.value.trim();
+        if (!text) return;
+        
+        if (!STATE.config.model) {
+            showToast('请先在设置中选择模型 / Please select a model in Settings first');
+            els.settingsModal.showModal();
+            return;
+        }
+
+        setLoading(true);
+        els.targetText.innerHTML = '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+        const allLangs = getAllLanguages();
+        const srcLangName = allLangs.find(l => l.code === STATE.currentPair.source)?.name || STATE.currentPair.source;
+        const tgtLangName = allLangs.find(l => l.code === STATE.currentPair.target)?.name || STATE.currentPair.target;
+
+        let systemPrompt;
+        const isChineseVariant = (s, t) => ['zh-CN', 'zh-TW'].includes(s) && ['zh-CN', 'zh-TW'].includes(t);
+        
+        if (isChineseVariant(STATE.currentPair.source, STATE.currentPair.target)) {
+            if (STATE.currentPair.target === 'zh-CN') {
+                systemPrompt = `你是简繁转换专家。你的任务是将繁體中文转换为简体中文。要求：1）每一个繁体字都必须转为对应的简体字，如「體」→「体」、「說」→「说」、「學」→「学」等；2）台湾用语必须转为大陆用语，如「軟體」→「软件」、「記憶體」→「内存」等；3）只输出转换后的简体中文，不要任何解释或说明；4）绝对不能输出任何繁体字。`;
+            } else {
+                systemPrompt = `你是简繁转换专家。你的任务是将简体中文转换为繁體中文。要求：1）每一个简体字都必须转为对应的繁体字，如「体」→「體」、「说」→「說」、「学」→「學」等；2）大陆用语必须转为台湾用语，如「软件」→「軟體」、「内存」→「記憶體」等；3）只输出转换后的繁體中文，不要任何解释或说明；4）绝对不能输出任何简体字。`;
+            }
+        } else {
+            systemPrompt = `You are a professional translator. Translate the following text from ${srcLangName} to ${tgtLangName}. Output ONLY the translated text. Do not include any explanations, notes, or opening/closing remarks. Preserve formatting.`;
+        }
+
+        try {
+            let translatedText = '';
+            
+            if (STATE.config.backend === 'ollama') {
+                const res = await fetch(`${STATE.config.ollamaUrl}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: STATE.config.model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ],
+                        stream: false
+                    })
+                });
+                
+                if (!res.ok) throw new Error(`Ollama Error: ${res.statusText}`);
+                const data = await res.json();
+                translatedText = data.message.content;
+
+            } else {
+                // LM Studio (OpenAI compatible)
+                const res = await fetch(`${STATE.config.lmStudioUrl}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: STATE.config.model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ],
+                        temperature: 0.3
+                    })
+                });
+
+                if (!res.ok) throw new Error(`LM Studio Error: ${res.statusText}`);
+                const data = await res.json();
+                translatedText = data.choices[0].message.content;
+            }
+
+            // Display result
+            els.targetText.innerText = translatedText.trim();
+            
+            // Save to history
+            if (!opts.skipHistory) {
+                addToHistory(text, translatedText.trim());
+            }
+
+        } catch (error) {
+            console.error(error);
+            els.targetText.innerHTML = `<span class="error-text">Error: ${escapeHtml(error.message)}</span>`;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            els.translateBtn.disabled = true;
+            els.translateBtnText.style.display = 'none';
+            els.spinner.style.display = 'block';
+        } else {
+            els.translateBtn.disabled = false;
+            els.translateBtnText.style.display = 'block';
+            els.spinner.style.display = 'none';
+        }
+    }
+
+    // --- History Logic ---
+    function addToHistory(source, translated) {
+        const allLangs = getAllLanguages();
+        const item = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            sourceLang: allLangs.find(l => l.code === STATE.currentPair.source)?.name || STATE.currentPair.source,
+            targetLang: allLangs.find(l => l.code === STATE.currentPair.target)?.name || STATE.currentPair.target,
+            sourceText: source,
+            translatedText: translated,
+            model: STATE.config.model
+        };
+
+        STATE.history.unshift(item);
+        if (STATE.history.length > 100) STATE.history.pop(); // limit 100
+        saveState();
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('history-container');
+        const emptyMsg = document.getElementById('empty-history');
+        const tmpl = document.getElementById('history-item-template');
+
+        container.innerHTML = '';
+
+        if (STATE.history.length === 0) {
+            emptyMsg.style.display = 'block';
+            return;
+        }
+        emptyMsg.style.display = 'none';
+
+        STATE.history.forEach(item => {
+            const clone = tmpl.content.cloneNode(true);
+            const div = clone.querySelector('.history-item');
+            
+            clone.querySelector('.history-meta').textContent = `${item.date} • ${item.sourceLang} → ${item.targetLang} • ${item.model}`;
+            clone.querySelector('.history-content').textContent = `${item.sourceText.substring(0, 50)}${item.sourceText.length > 50 ? '...' : ''} → ${item.translatedText.substring(0, 50)}...`;
+            
+            // Load on click
+            div.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-item')) return; // ignore delete click
+                
+                // Load texts
+                els.sourceText.value = item.sourceText;
+                els.targetText.innerText = item.translatedText;
+                updateCharCount();
+                autoResizeTextarea();
+                els.historyModal.close();
+                
+                // Note: We don't force switch languages to match history because users might want to re-translate to a different language, 
+                // but setting them might be helpful. Let's stick to just loading text as requested "load it back into the translation area".
+            });
+
+            // Delete action
+            clone.querySelector('.delete-item').addEventListener('click', (e) => {
+                e.stopPropagation();
+                STATE.history = STATE.history.filter(h => h.id !== item.id);
+                saveState();
+                renderHistory();
+            });
+
+            container.appendChild(clone);
+        });
+    }
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>

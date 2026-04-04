@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src http: https:; img-src 'none'; font-src 'none'; frame-src 'none';">
+    <title>Prompt Gen</title>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-hover: #1765cc;
+            --bg-color: #ffffff;
+            --surface-color: #f1f3f4;
+            --border-color: #bdbdbd;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --danger-color: #d93025;
+            --success-color: #188038;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            --shadow-sm: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            --shadow-md: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --header-height: 64px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--surface-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        /* Icons */
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        .icon-sm {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-color);
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .app-title span {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        button.icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.icon-btn:hover {
+            background-color: rgba(60,64,67,0.08);
+            color: var(--text-primary);
+        }
+
+        button.icon-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Main Area */
+        main {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panels-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .panel {
+            background-color: var(--bg-color);
+            border: 1px solid #bdbdbd;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+            transition: box-shadow 0.2s;
+        }
+
+        #source-panel {
+            flex: 1;
+            min-height: 200px;
+            background-color: #e3f2fd; /* Light blue tint */
+        }
+
+        #target-panel {
+            flex: 2;
+            background-color: #e8f5e9; /* Light green tint */
+            text-align: left;
+            min-height: 200px;
+        }
+
+        .panel:focus-within {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-color: #aaa;
+        }
+
+        .panel-toolbar {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            min-height: 44px;
+            flex-wrap: nowrap;
+        }
+
+        #source-panel .panel-toolbar {
+            justify-content: flex-end;
+        }
+
+        #target-panel .panel-toolbar {
+            justify-content: space-between;
+        }
+
+        .panel-content {
+            padding: 16px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            border: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 17px;
+            color: var(--text-primary);
+            background: transparent;
+            outline: none;
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        .output-div {
+            width: 100%;
+            min-height: 120px;
+            font-size: 17px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            background: transparent;
+            text-align: left;
+            outline: none;
+            cursor: text;
+        }
+
+        .output-placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .loading-dots {
+            color: var(--text-secondary);
+            font-size: 24px;
+            letter-spacing: 4px;
+        }
+        .loading-dots span {
+            animation: blink 1.4s infinite;
+            opacity: 0.2;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        .action-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .char-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Optimize Button */
+        .optimize-container {
+            display: flex;
+            justify-content: center;
+            padding: 24px 0;
+            gap: 16px;
+        }
+
+        .optimize-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 24px;
+            font-size: 17px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(26, 115, 232, 0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .optimize-btn:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 6px 8px rgba(26, 115, 232, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .optimize-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(26, 115, 232, 0.3);
+        }
+
+        .optimize-btn:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .copy-result-btn {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 24px;
+            font-size: 17px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(24, 128, 56, 0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-result-btn:hover {
+            background-color: #137333;
+            box-shadow: 0 6px 8px rgba(24, 128, 56, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .copy-result-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(24, 128, 56, 0.3);
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+
+        /* Modals */
+        dialog {
+            border: 1px solid #aaa;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+            padding: 0;
+            max-width: 600px;
+            width: 90%;
+            margin: auto;
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+        
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: var(--surface-color);
+            border-bottom-left-radius: var(--radius-lg);
+            border-bottom-right-radius: var(--radius-lg);
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .panel-toolbar .form-select {
+            width: auto;
+            padding: 4px 8px;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            color: var(--danger-color);
+            border-color: currentColor;
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(217, 48, 37, 0.08);
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 13px;
+        }
+
+        /* History List */
+        .history-list {
+            list-style: none;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: grid;
+            grid-template-columns: 1fr 40px;
+            gap: 12px;
+        }
+
+        .history-item:hover {
+            background-color: rgba(0,0,0,0.03);
+        }
+
+        .history-info {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .history-content {
+            font-size: 15px;
+            color: var(--text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+        }
+
+        .history-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Preset List in Settings */
+        .preset-list-item {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--bg-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .preset-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .preset-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .preset-preview {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-style: italic;
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .move-btn {
+            background: none;
+            border: 1px solid #bbb;
+            border-radius: 3px;
+            cursor: pointer;
+            color: #333;
+            padding: 2px 5px;
+            font-size: 15px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .move-btn:hover { background: #f0f0f0; }
+        .move-btn:disabled { opacity: 0.3; cursor: default; background: none; }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            main {
+                padding: 12px;
+            }
+
+            .panels-row {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .optimize-container {
+                padding: 12px 0;
+            }
+            
+            .header-actions {
+                gap: 4px;
+            }
+            
+            .panel {
+                min-height: 150px;
+            }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #323232;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 15px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Error state in output */
+        .error-text {
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="app-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M14.06 9.94L12 9l2.06-.94L15 6l.94 2.06L18 9l-2.06.94L15 12l-.94-2.06zM4 14l.94-2.06L7 11l-2.06-.94L4 8l-.94 2.06L1 11l2.06.94L4 14zm4.5-5l1.09-2.41L12 5.5 9.59 4.41 8.5 2 7.41 4.41 5 5.5l2.41 1.09L8.5 9zm-4 11.5l6-6.01 4 4L23 8.93l-1.41-1.41-7.09 7.97-4-4L3 19.08l1.5 1.42z"/></svg>
+        <span>提示词优化 Prompt Gen</span>
+    </div>
+    <div class="header-actions">
+        <button class="icon-btn" id="history-btn" title="历史 History">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="设置 Settings">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84a.484.484 0 00-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 00-.59.22L2.74 8.87a.49.49 0 00.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32a.488.488 0 00.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96a.488.488 0 00.59-.22l1.92-3.32a.49.49 0 00-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+    </div>
+</header>
+
+<main>
+    <div class="panels-row">
+        <section class="panel" id="source-panel">
+            <div class="panel-toolbar">
+                <div class="action-group">
+                    <button class="icon-btn" id="copy-source-btn" title="复制 Copy">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                    <button class="icon-btn" id="paste-btn" title="粘贴 Paste">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
+                    </button>
+                    <span class="char-count" id="char-count">0/2500</span>
+                    <button class="icon-btn" id="clear-text-btn" title="清除 Clear">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <textarea id="source-text" placeholder="输入你的提示词 Enter your prompt here..." maxlength="2500">The quick brown fox jumps over the lazy dog</textarea>
+            </div>
+        </section>
+
+        <section class="panel" id="target-panel">
+            <div class="panel-toolbar" style="flex-wrap: nowrap; gap: 6px; overflow-x: auto;">
+                <select id="provider-select" class="form-select" style="background: white; font-size: 13px; flex: 0 0 auto;" title="供应商 Provider">
+                    <!-- Populated by JS -->
+                </select>
+                <div style="flex: 1 1 auto; position: relative; min-width: 80px;">
+                    <select id="model-select-main" class="form-select" style="background: white; font-size: 13px; width: 100%;" title="模型 Model">
+                        <option value="" disabled selected>模型 Model...</option>
+                    </select>
+                    <div id="model-error" class="error-text" style="font-size: 12px; position: absolute; bottom: -16px; left: 0; white-space: nowrap;"></div>
+                </div>
+                <button class="icon-btn" id="refresh-models-btn" title="刷新模型列表 Refresh Models" style="flex-shrink: 0;">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+                <select id="preset-select" class="form-select" style="background: white; font-size: 13px; flex: 0 0 auto;" title="预设 Preset">
+                    <!-- Presets loaded via JS -->
+                </select>
+                <div class="action-group" style="gap: 4px; font-size: 13px; white-space: nowrap; flex-shrink: 0;">
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="radio" name="output-lang" value="auto" checked style="margin:0;"> Auto</label>
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="radio" name="output-lang" value="zh" style="margin:0;"> 中文</label>
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="radio" name="output-lang" value="en" style="margin:0;"> EN</label>
+                </div>
+                <button class="icon-btn" id="copy-target-btn" title="复制结果 Copy Result" style="flex-shrink: 0;">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div id="target-text" class="output-div" contenteditable="true"><span class="output-placeholder">优化结果 Optimized result</span></div>
+            </div>
+            <div style="padding: 4px 16px 8px; text-align: right; font-size: 13px; color: var(--text-secondary);">
+                <span id="target-char-count">0 字符</span>
+            </div>
+        </section>
+    </div>
+
+    <div class="optimize-container">
+        <button id="optimize-btn" class="optimize-btn">
+            <span class="btn-text">优化 Optimize</span>
+            <div class="spinner" style="display: none;"></div>
+        </button>
+        <button id="copy-result-btn" class="copy-result-btn" title="复制结果 Copy Result">
+            <svg style="width:20px;height:20px;fill:white;" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            复制 Copy
+        </button>
+    </div>
+</main>
+
+<footer>
+    本地 AI 驱动 Powered by local AI
+</footer>
+
+<!-- CORS Warning Banner -->
+<div id="cors-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:1000; background:#fef7e0; border-bottom:2px solid #f9ab00; padding:12px 24px; font-size:15px; color:#3c4043;">
+    <div style="max-width:900px; margin:0 auto; display:flex; align-items:flex-start; gap:12px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#f9ab00" style="flex-shrink:0; margin-top:2px;"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        <div style="flex:1;">
+            <strong>CORS Error — 浏览器拦截了对本地 API 的请求</strong><br>
+            直接双击打开 HTML（file:// 协议）时，浏览器发送 <code style="background:#e8eaed; padding:1px 4px; border-radius:3px; font-size:12px;">Origin: null</code>，被 Ollama/LM Studio CORS 策略拒绝。<br>
+            <span style="margin-top:6px; display:inline-block;">
+                <strong>方法一（推荐）：</strong>允许 Ollama 跨域，终端执行后重启 Ollama：<br>
+                <code style="background:#e8eaed; padding:2px 6px; border-radius:4px; font-size:14px; display:inline-block; margin:4px 0;">launchctl setenv OLLAMA_ORIGINS "*"</code><br>
+                <strong>方法二：</strong>用 HTTP 服务打开 → <code style="background:#e8eaed; padding:2px 6px; border-radius:4px; font-size:14px;">python3 -m http.server 8080</code>
+                然后访问 <a href="http://localhost:8080" style="color:#1a73e8;">http://localhost:8080</a>
+            </span>
+        </div>
+        <button id="close-cors-banner" style="background:none; border:none; cursor:pointer; color:#5f6368; font-size:20px; line-height:1; padding:4px;">✕</button>
+    </div>
+</div>
+
+<div id="toast" class="toast">已复制 Copied!</div>
+
+<!-- Settings Modal -->
+<dialog id="settings-modal">
+    <div class="modal-header">
+        <h3 class="modal-title">设置 Settings</h3>
+        <button class="icon-btn" id="close-settings">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="form-group">
+            <label class="form-label">供应商管理 Providers</label>
+            <div id="provider-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
+                <!-- Provider items here -->
+            </div>
+            <button class="btn" id="add-provider-btn" style="width: 100%;">+ 新增供应商 Add Provider</button>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 24px 0;">
+
+        <div class="form-group">
+            <label class="form-label">预设管理 Preset Prompts</label>
+            <div id="preset-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
+                <!-- Preset items here -->
+            </div>
+            <button class="btn" id="add-preset-btn" style="width: 100%;">+ 新增预设 Add Preset</button>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 24px 0;">
+
+        <div class="form-group">
+            <label class="form-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="disable-thinking-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+                关闭思考模式 Disable Thinking
+            </label>
+            <div style="font-size: 0.85em; color: #666; margin-top: 4px;">
+                启用后在用户消息前自动插入 /no_think 指令，跳过模型的思考推理过程（如 Qwen3 等 thinking model）。
+                <br>When enabled, automatically prepends /no_think to user messages, skipping the model's reasoning phase (e.g. Qwen3 thinking models).
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 24px 0;">
+
+        <div class="form-group">
+            <label class="form-label">导入/导出 Import/Export</label>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn" id="export-config-btn">导出配置 Export Config</button>
+                <button class="btn" id="import-config-btn">导入配置 Import Config</button>
+                <input type="file" id="import-file-input" style="display: none;" accept=".json">
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn" id="reset-config-btn" style="color: #d93025;">重置配置 Reset</button>
+        <button class="btn btn-primary" id="save-settings">保存 Save</button>
+    </div>
+</dialog>
+
+<!-- Provider Edit Modal -->
+<dialog id="provider-modal">
+    <div class="modal-header">
+        <h3 class="modal-title" id="provider-modal-title">编辑供应商 Edit Provider</h3>
+        <button class="icon-btn" id="close-provider-modal">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="form-group">
+            <label class="form-label">名称 Name</label>
+            <input type="text" class="form-input" id="provider-name-input" placeholder="e.g. My Ollama" maxlength="100">
+        </div>
+        <div class="form-group">
+            <label class="form-label">端点 Endpoint</label>
+            <input type="text" class="form-input" id="provider-endpoint-input" placeholder="http://localhost:11434" maxlength="500">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Token (Optional)</label>
+            <div style="position: relative;">
+                <input type="text" class="form-input" id="provider-token-input" placeholder="sk-..." style="padding-right: 40px; -webkit-text-security: disc;" maxlength="500" autocomplete="off" data-lpignore="true" data-1p-ignore>
+                <button type="button" id="toggle-token-btn" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px;">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                </button>
+            </div>
+        </div>
+        <details style="margin-top: 8px;">
+            <summary style="cursor: pointer; font-size: 14px; color: var(--text-secondary); user-select: none;">高级选项 Advanced</summary>
+            <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label">API 类型 API Type</label>
+                <select id="provider-api-type" class="form-select" style="width: 100%;">
+                    <option value="openai">OpenAI 兼容 Compatible</option>
+                    <option value="ollama">Ollama (Native)</option>
+                </select>
+            </div>
+        </details>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn" id="cancel-provider-btn">取消 Cancel</button>
+        <button class="btn btn-primary" id="save-provider-btn">确认 Save</button>
+    </div>
+</dialog>
+
+<!-- Preset Edit Modal (Nested) -->
+<dialog id="preset-modal">
+    <div class="modal-header">
+        <h3 class="modal-title" id="preset-modal-title">编辑预设 Edit Preset</h3>
+        <button class="icon-btn" id="close-preset-modal">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="form-group">
+            <label class="form-label">预设名称 Name</label>
+            <input type="text" class="form-input" id="preset-name-input" placeholder="e.g. More Creative" maxlength="200">
+        </div>
+        <div class="form-group">
+            <label class="form-label">系统提示词 System Prompt</label>
+            <textarea class="form-textarea" id="preset-prompt-input" placeholder="You are an expert..." maxlength="10000"></textarea>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn" id="cancel-preset-btn">取消 Cancel</button>
+        <button class="btn btn-primary" id="save-preset-btn">确认 Save</button>
+    </div>
+</dialog>
+
+<!-- History Modal -->
+<dialog id="history-modal">
+    <div class="modal-header">
+        <h3 class="modal-title">优化历史 History</h3>
+        <button class="icon-btn" id="close-history">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+    </div>
+    <div class="modal-body" style="padding: 0;">
+        <div id="history-container">
+            <!-- Items go here -->
+        </div>
+        <div id="empty-history" style="padding: 24px; text-align: center; color: var(--text-secondary); display: none;">
+            暂无记录 No history yet.
+        </div>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-danger" id="clear-history">清除全部 Clear All</button>
+        <button class="btn" id="close-history-btn">关闭 Close</button>
+    </div>
+</dialog>
+
+<script>
+    // --- Security Helpers ---
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function sanitizeUrl(url) {
+        try {
+            const u = new URL(url);
+            if (!['http:', 'https:'].includes(u.protocol)) return null;
+            return u.origin + u.pathname.replace(/\/+$/, '');
+        } catch { return null; }
+    }
+
+    function createDeleteIcon() {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'icon icon-sm');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z');
+        svg.appendChild(path);
+        return svg;
+    }
+
+    function safeStringSlice(str, maxChars) {
+        if (!str || str.length <= maxChars) return str || '';
+        const arr = Array.from(str);
+        return arr.length <= maxChars ? str : arr.slice(0, maxChars).join('');
+    }
+
+    function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(new DOMException(`请求超时（${Math.round(timeoutMs/1000)}s） Request timed out after ${Math.round(timeoutMs/1000)}s`, 'TimeoutError')), timeoutMs);
+        return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+    }
+
+    // Streaming fetch: reads SSE chunks, resets idle timer on each chunk, no global timeout
+    async function fetchStreaming(url, options, { onChunk, idleTimeoutMs = 30000 }) {
+        const controller = new AbortController();
+        let idleTimer = null;
+        const resetIdle = () => {
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => controller.abort(new DOMException(
+                `模型无响应超时（${Math.round(idleTimeoutMs/1000)}s） No data received for ${Math.round(idleTimeoutMs/1000)}s`,
+                'TimeoutError'
+            )), idleTimeoutMs);
+        };
+
+        resetIdle(); // start initial idle timer (waiting for first chunk)
+        try {
+            const res = await fetch(url, { ...options, signal: controller.signal });
+            if (!res.ok) throw new Error(`API Error: ${res.status} ${res.statusText}`);
+            resetIdle();
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                resetIdle();
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete SSE lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // keep incomplete line in buffer
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed === 'data: [DONE]') continue;
+                    if (trimmed.startsWith('data: ')) {
+                        try {
+                            const json = JSON.parse(trimmed.slice(6));
+                            onChunk(json);
+                        } catch (e) { /* skip malformed JSON */ }
+                    } else if (trimmed.startsWith('{')) {
+                        // Ollama native streaming: one JSON per line (no SSE prefix)
+                        try {
+                            const json = JSON.parse(trimmed);
+                            onChunk(json);
+                        } catch (e) { /* skip */ }
+                    }
+                }
+            }
+            // Process any remaining buffer
+            if (buffer.trim() && buffer.trim() !== 'data: [DONE]') {
+                const trimmed = buffer.trim();
+                const dataPart = trimmed.startsWith('data: ') ? trimmed.slice(6) : trimmed;
+                try {
+                    const json = JSON.parse(dataPart);
+                    onChunk(json);
+                } catch (e) { /* skip */ }
+            }
+        } finally {
+            if (idleTimer) clearTimeout(idleTimer);
+        }
+    }
+
+    function pickKnownKeys(source, allowedKeys) {
+        const result = {};
+        for (const key of allowedKeys) {
+            if (key in source) result[key] = source[key];
+        }
+        return result;
+    }
+
+    // --- Defaults ---
+    const DEFAULT_PRESETS = Object.freeze([
+        Object.freeze({
+            id: 'default_1',
+            name: '示例 Examples',
+            systemPrompt: 'You are a prompt engineering expert. Your task is to take the user\'s prompt as the central theme and generate at least 3 distinct, richly detailed examples that revolve around and illustrate that theme.\n\nEvery example must be directly related to the user\'s original prompt. Do not drift to unrelated topics.\n\nFor each example, emphasize the following dimensions:\n\nTime: Describe the season (spring, summer, autumn, winter), time of day (morning, noon, evening, night), and lighting conditions (golden hour, overcast, moonlit, neon-lit).\n\nPlace: Specify the country, city, and street or landmark. Be concrete and specific.\n\nEnvironment: Describe the weather, temperature, vegetation, surrounding architecture, and cultural atmosphere of the setting.\n\nCharacters: Describe gender, approximate age, physical appearance, clothing and accessories, facial expression, posture, and current action or gesture.\n\nPlot: Describe what is happening, the interactions between characters, their behaviors, movements, and inner emotions or mindset.\n\nFormatting rules: Do NOT use markdown formatting such as asterisks, dashes for lists, brackets, or bold/italic markers. Normal punctuation like commas, periods, colons, and question marks is required. Use plain text with line breaks for separation.\n\nOutput ONLY the improved prompt with examples. No meta-commentary or explanations.'
+        })
+    ]);
+
+    const DEFAULT_PROVIDERS = Object.freeze([
+        Object.freeze({ id: 'provider_ollama', name: 'Ollama', endpoint: 'http://localhost:11434', token: '', apiType: 'openai' }),
+        Object.freeze({ id: 'provider_lmstudio', name: 'LM Studio', endpoint: 'http://127.0.0.1:1234', token: '', apiType: 'openai' })
+    ]);
+
+    // --- State & Config ---
+    const STATE = {
+        config: {
+            providers: [],
+            activeProviderId: 'provider_ollama',
+            model: '',
+            presets: [],
+            disableThinking: false
+        },
+        history: [],
+        lastUsedPresetId: 'default_1',
+        outputLang: 'auto'
+    };
+
+    // --- DOM Elements ---
+    const els = {
+        sourceText: document.getElementById('source-text'),
+        targetText: document.getElementById('target-text'),
+        charCount: document.getElementById('char-count'),
+        optimizeBtn: document.getElementById('optimize-btn'),
+        optimizeBtnText: document.querySelector('#optimize-btn .btn-text'),
+        spinner: document.querySelector('#optimize-btn .spinner'),
+        presetSelect: document.getElementById('preset-select'),
+        modelSelectMain: document.getElementById('model-select-main'),
+        providerSelect: document.getElementById('provider-select'),
+        settingsModal: document.getElementById('settings-modal'),
+        presetModal: document.getElementById('preset-modal'),
+        providerModal: document.getElementById('provider-modal'),
+        historyModal: document.getElementById('history-modal'),
+        outputLangRadios: document.getElementsByName('output-lang'),
+        toast: document.getElementById('toast')
+    };
+
+    // --- Initialization ---
+    function init() {
+        loadState();
+        setupEventListeners();
+        renderPresetsDropdown();
+        renderProviderSelect();
+        updateCharCount();
+        
+        // Auto-refresh models if needed
+        if (!STATE.config.model) {
+            fetchModels().catch(() => {});
+        } else {
+            // Populate main model select with saved model
+            const opt = document.createElement('option');
+            opt.value = STATE.config.model;
+            opt.textContent = STATE.config.model;
+            opt.selected = true;
+            els.modelSelectMain.appendChild(opt);
+        }
+        
+        checkCorsEnvironment();
+
+        // Sync initial panel heights
+        requestAnimationFrame(() => {
+            const sp = document.getElementById('source-panel');
+            const tp = document.getElementById('target-panel');
+            const h = Math.max(sp.offsetHeight, tp.offsetHeight);
+            sp.style.minHeight = h + 'px';
+            tp.style.minHeight = h + 'px';
+        });
+    }
+
+    function checkCorsEnvironment() {
+        if (window.location.protocol !== 'file:') return;
+        const provider = STATE.config.providers.find(p => p.id === STATE.config.activeProviderId);
+        if (!provider) return;
+        const endpoint = sanitizeUrl(provider.endpoint);
+        if (!endpoint) return;
+
+        fetchWithTimeout(`${endpoint}/`, { method: 'HEAD' }, 5000).catch(() => {
+            document.getElementById('cors-banner').style.display = 'block';
+        });
+    }
+
+    function loadState() {
+        try {
+            const savedConfig = localStorage.getItem('prompt_gen_config');
+            if (savedConfig) {
+                const parsed = JSON.parse(savedConfig);
+                
+                // Migration from old backend format
+                if (parsed.backend && !parsed.providers) {
+                    parsed.providers = [
+                        { id: 'provider_ollama', name: 'Ollama', endpoint: parsed.ollamaUrl || 'http://localhost:11434', token: '', apiType: 'openai' },
+                        { id: 'provider_lmstudio', name: 'LM Studio', endpoint: parsed.lmStudioUrl || 'http://127.0.0.1:1234', token: '', apiType: 'openai' }
+                    ];
+                    parsed.activeProviderId = parsed.backend === 'lmstudio' ? 'provider_lmstudio' : 'provider_ollama';
+                    delete parsed.backend;
+                    delete parsed.ollamaUrl;
+                    delete parsed.lmStudioUrl;
+                }
+
+                STATE.config = {
+                    ...STATE.config,
+                    ...pickKnownKeys(parsed, ['providers', 'activeProviderId', 'model', 'presets', 'disableThinking'])
+                };
+                
+                // Ensure presets exist
+                if (!Array.isArray(STATE.config.presets) || STATE.config.presets.length === 0) {
+                    STATE.config.presets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+                }
+                
+                // Ensure providers exist
+                if (!Array.isArray(STATE.config.providers) || STATE.config.providers.length === 0) {
+                    STATE.config.providers = JSON.parse(JSON.stringify(DEFAULT_PROVIDERS));
+                    STATE.config.activeProviderId = 'provider_ollama';
+                }
+
+                // Ensure disableThinking is boolean
+                if (typeof STATE.config.disableThinking !== 'boolean') {
+                    STATE.config.disableThinking = false;
+                }
+            } else {
+                STATE.config.presets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+                STATE.config.providers = JSON.parse(JSON.stringify(DEFAULT_PROVIDERS));
+                STATE.config.activeProviderId = 'provider_ollama';
+            }
+        } catch (e) {
+            console.error('Failed to load config, resetting:', e);
+            STATE.config.presets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+            STATE.config.providers = JSON.parse(JSON.stringify(DEFAULT_PROVIDERS));
+            STATE.config.activeProviderId = 'provider_ollama';
+        }
+
+        try {
+            const savedHistory = localStorage.getItem('prompt_gen_history');
+            if (savedHistory) {
+                const parsed = JSON.parse(savedHistory);
+                STATE.history = Array.isArray(parsed) ? parsed : [];
+            }
+        } catch (e) {
+            console.error('Failed to load history, resetting:', e);
+            STATE.history = [];
+        }
+
+        const savedPresetId = localStorage.getItem('prompt_gen_last_preset');
+        if (savedPresetId) {
+            STATE.lastUsedPresetId = savedPresetId;
+        }
+
+        // Restore output language selection
+        const savedLang = localStorage.getItem('prompt_gen_output_lang');
+        if (savedLang) {
+            STATE.outputLang = savedLang;
+        }
+        for (const radio of els.outputLangRadios) {
+            radio.checked = (radio.value === STATE.outputLang);
+        }
+    }
+
+    function saveState() {
+        localStorage.setItem('prompt_gen_config', JSON.stringify(STATE.config));
+        localStorage.setItem('prompt_gen_history', JSON.stringify(STATE.history));
+        localStorage.setItem('prompt_gen_last_preset', STATE.lastUsedPresetId);
+        localStorage.setItem('prompt_gen_output_lang', STATE.outputLang);
+    }
+
+    // --- Event Listeners ---
+    function autoGrowTextarea() {
+        els.sourceText.style.height = 'auto';
+        els.sourceText.style.height = els.sourceText.scrollHeight + 'px';
+    }
+
+    function setupEventListeners() {
+        // CORS banner
+        document.getElementById('close-cors-banner').addEventListener('click', () => {
+            document.getElementById('cors-banner').style.display = 'none';
+        });
+
+        // Text Input — auto-grow textarea
+        els.sourceText.addEventListener('input', () => {
+            updateCharCount();
+            autoGrowTextarea();
+        });
+
+        els.targetText.addEventListener('input', () => {
+            updateTargetCharCount();
+        });
+
+        // Toolbar Buttons
+        document.getElementById('clear-text-btn').addEventListener('click', () => {
+            els.sourceText.value = '';
+            els.targetText.innerHTML = '<span class="output-placeholder">优化结果 Optimized result</span>';
+            updateCharCount();
+            updateTargetCharCount();
+            autoGrowTextarea();
+            els.sourceText.focus();
+        });
+
+        document.getElementById('paste-btn').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text) return;
+                els.sourceText.value = text.substring(0, 2500);
+                updateCharCount();
+                autoGrowTextarea();
+                els.sourceText.focus();
+            } catch (err) {
+                showToast('粘贴失败 Paste failed');
+            }
+        });
+
+        document.getElementById('copy-source-btn').addEventListener('click', () => copyToClipboard(els.sourceText.value));
+        document.getElementById('copy-target-btn').addEventListener('click', () => {
+            const text = els.targetText.innerText;
+            if(text && !els.targetText.querySelector('.output-placeholder')) copyToClipboard(text);
+        });
+
+        // Optimize
+        els.optimizeBtn.addEventListener('click', performOptimization);
+
+        // Copy Result (green button)
+        document.getElementById('copy-result-btn').addEventListener('click', () => {
+            const text = els.targetText.innerText;
+            if (text && !els.targetText.querySelector('.output-placeholder')) copyToClipboard(text);
+        });
+
+        // Preset Selection
+        els.presetSelect.addEventListener('change', (e) => {
+            STATE.lastUsedPresetId = e.target.value;
+            saveState();
+        });
+
+        // Provider Selection
+        els.providerSelect.addEventListener('change', (e) => {
+            STATE.config.activeProviderId = e.target.value;
+            saveState();
+            fetchModels();
+        });
+
+        // Main model selection — save
+        els.modelSelectMain.addEventListener('change', (e) => {
+            STATE.config.model = e.target.value;
+            saveState();
+        });
+
+        // Output language selection
+        Array.from(els.outputLangRadios).forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                STATE.outputLang = e.target.value;
+                saveState();
+            });
+        });
+
+        // Settings Modal
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            renderPresetsList();
+            renderProviderList();
+            document.getElementById('disable-thinking-checkbox').checked = !!STATE.config.disableThinking;
+            els.settingsModal.showModal();
+        });
+        document.getElementById('close-settings').addEventListener('click', () => els.settingsModal.close());
+        document.getElementById('save-settings').addEventListener('click', () => {
+            saveConfigFromUI();
+            renderPresetsDropdown(); // Refresh dropdown in case presets changed
+            renderProviderSelect(); // Refresh provider dropdown
+            els.settingsModal.close();
+            showToast('设置已保存 Settings saved');
+        });
+
+        document.getElementById('refresh-models-btn').addEventListener('click', fetchModels);
+
+        // Reset
+        document.getElementById('reset-config-btn').addEventListener('click', () => {
+            if (confirm('确认重置所有配置？历史记录也会清除。\nReset all settings? History will also be cleared.')) {
+                localStorage.removeItem('prompt_gen_config');
+                localStorage.removeItem('prompt_gen_history');
+                localStorage.removeItem('prompt_gen_last_preset');
+                localStorage.removeItem('prompt_gen_output_lang');
+                location.reload();
+            }
+        });
+
+        // Preset Management
+        document.getElementById('add-preset-btn').addEventListener('click', () => openPresetModal());
+        document.getElementById('close-preset-modal').addEventListener('click', () => els.presetModal.close());
+        document.getElementById('cancel-preset-btn').addEventListener('click', () => els.presetModal.close());
+        document.getElementById('save-preset-btn').addEventListener('click', savePreset);
+
+        // Provider Management
+        document.getElementById('add-provider-btn').addEventListener('click', () => openProviderModal());
+        document.getElementById('close-provider-modal').addEventListener('click', () => els.providerModal.close());
+        document.getElementById('cancel-provider-btn').addEventListener('click', () => els.providerModal.close());
+        document.getElementById('save-provider-btn').addEventListener('click', saveProvider);
+        document.getElementById('toggle-token-btn').addEventListener('click', toggleTokenVisibility);
+
+        // Import/Export
+        document.getElementById('export-config-btn').addEventListener('click', exportConfig);
+        document.getElementById('import-config-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+        document.getElementById('import-file-input').addEventListener('change', importConfig);
+
+        // History
+        document.getElementById('history-btn').addEventListener('click', () => {
+            renderHistory();
+            els.historyModal.showModal();
+        });
+        document.getElementById('close-history').addEventListener('click', () => els.historyModal.close());
+        document.getElementById('close-history-btn').addEventListener('click', () => els.historyModal.close());
+        
+        const clearBtn = document.getElementById('clear-history');
+        clearBtn.addEventListener('click', () => {
+            if (clearBtn.textContent.includes('Clear All')) {
+                clearBtn.textContent = '确认清除? Confirm?';
+                setTimeout(() => {
+                    if (clearBtn.textContent === '确认清除? Confirm?') {
+                        clearBtn.textContent = '清除全部 Clear All';
+                    }
+                }, 3000);
+            } else {
+                STATE.history = [];
+                saveState();
+                renderHistory();
+                clearBtn.textContent = '清除全部 Clear All';
+                showToast('已清除 Cleared');
+            }
+        });
+    }
+
+    function toggleTokenVisibility() {
+        const input = document.getElementById('provider-token-input');
+        const isHidden = input.style.webkitTextSecurity === 'disc';
+        input.style.webkitTextSecurity = isHidden ? 'none' : 'disc';
+    }
+
+    function updateCharCount() {
+        const len = els.sourceText.value.length;
+        els.charCount.textContent = `${len}/2500`;
+    }
+
+    function updateTargetCharCount() {
+        const text = els.targetText.innerText || '';
+        const placeholder = text === '优化结果 Optimized result' ? 0 : text.length;
+        document.getElementById('target-char-count').textContent = `${placeholder}/8000 字符`;
+    }
+
+    function showToast(msg) {
+        els.toast.textContent = msg;
+        els.toast.classList.add('show');
+        setTimeout(() => els.toast.classList.remove('show'), 2000);
+    }
+
+    function copyToClipboard(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('✓ 已复制 Copied');
+        }).catch(() => {
+            showToast('复制失败 Copy failed');
+        });
+    }
+
+    // --- Preset Logic ---
+    function renderPresetsDropdown() {
+        els.presetSelect.innerHTML = '';
+        STATE.config.presets.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === STATE.lastUsedPresetId) opt.selected = true;
+            els.presetSelect.appendChild(opt);
+        });
+    }
+
+    function renderPresetsList() {
+        const container = document.getElementById('preset-list-container');
+        container.innerHTML = '';
+        
+        STATE.config.presets.forEach((p, index) => {
+            const div = document.createElement('div');
+            div.className = 'preset-list-item';
+            
+            const header = document.createElement('div');
+            header.className = 'preset-header';
+            
+            const name = document.createElement('div');
+            name.className = 'preset-name';
+            name.textContent = p.name;
+            
+            const actions = document.createElement('div');
+            actions.className = 'preset-actions';
+
+            const topBtn = document.createElement('button');
+            topBtn.className = 'move-btn';
+            topBtn.textContent = '⏫';
+            topBtn.title = '置顶 Move to Top';
+            topBtn.disabled = index === 0;
+            topBtn.onclick = () => movePreset(index, 'top');
+
+            const upBtn = document.createElement('button');
+            upBtn.className = 'move-btn';
+            upBtn.textContent = '🔼';
+            upBtn.title = '上移 Move Up';
+            upBtn.disabled = index === 0;
+            upBtn.onclick = () => movePreset(index, -1);
+
+            const downBtn = document.createElement('button');
+            downBtn.className = 'move-btn';
+            downBtn.textContent = '🔽';
+            downBtn.title = '下移 Move Down';
+            downBtn.disabled = index === STATE.config.presets.length - 1;
+            downBtn.onclick = () => movePreset(index, 1);
+
+            const bottomBtn = document.createElement('button');
+            bottomBtn.className = 'move-btn';
+            bottomBtn.textContent = '⏬';
+            bottomBtn.title = '置底 Move to Bottom';
+            bottomBtn.disabled = index === STATE.config.presets.length - 1;
+            bottomBtn.onclick = () => movePreset(index, 'bottom');
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm';
+            editBtn.textContent = '编辑 Edit';
+            editBtn.onclick = () => openPresetModal(index);
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-sm btn-danger';
+            delBtn.textContent = '删除 Delete';
+            delBtn.onclick = () => deletePreset(index);
+
+            actions.appendChild(topBtn);
+            actions.appendChild(upBtn);
+            actions.appendChild(downBtn);
+            actions.appendChild(bottomBtn);
+            actions.appendChild(editBtn);
+            actions.appendChild(delBtn);
+            
+            header.appendChild(name);
+            header.appendChild(actions);
+            
+            const preview = document.createElement('div');
+            preview.className = 'preset-preview';
+            preview.textContent = p.systemPrompt;
+            
+            div.appendChild(header);
+            div.appendChild(preview);
+            container.appendChild(div);
+        });
+    }
+
+    let currentEditingIndex = -1;
+
+    function openPresetModal(index = -1) {
+        currentEditingIndex = index;
+        const title = document.getElementById('preset-modal-title');
+        const nameInput = document.getElementById('preset-name-input');
+        const promptInput = document.getElementById('preset-prompt-input');
+        
+        if (index >= 0) {
+            const p = STATE.config.presets[index];
+            title.textContent = '编辑预设 Edit Preset';
+            nameInput.value = p.name;
+            promptInput.value = p.systemPrompt;
+        } else {
+            title.textContent = '新增预设 Add Preset';
+            nameInput.value = '';
+            promptInput.value = '';
+        }
+        
+        els.presetModal.showModal();
+    }
+
+    function savePreset() {
+        const name = document.getElementById('preset-name-input').value.trim();
+        const prompt = document.getElementById('preset-prompt-input').value.trim();
+        
+        if (!name || !prompt) {
+            alert('请填写名称和提示词 Name and prompt are required');
+            return;
+        }
+        
+        if (currentEditingIndex >= 0) {
+            STATE.config.presets[currentEditingIndex].name = name;
+            STATE.config.presets[currentEditingIndex].systemPrompt = prompt;
+        } else {
+            STATE.config.presets.push({
+                id: 'preset_' + Date.now(),
+                name: name,
+                systemPrompt: prompt
+            });
+        }
+        
+        saveState();
+        renderPresetsList();
+        els.presetModal.close();
+    }
+
+    function deletePreset(index) {
+        if (confirm('确认删除此预设? Confirm delete?')) {
+            const deletedId = STATE.config.presets[index].id;
+            STATE.config.presets.splice(index, 1);
+            
+            // If we deleted the current selection, reset to first
+            if (STATE.lastUsedPresetId === deletedId && STATE.config.presets.length > 0) {
+                STATE.lastUsedPresetId = STATE.config.presets[0].id;
+            }
+            
+            saveState();
+            renderPresetsList();
+        }
+    }
+
+    function movePreset(index, direction) {
+        const presets = STATE.config.presets;
+        const item = presets[index];
+        if (direction === 'top') {
+            if (index === 0) return;
+            presets.splice(index, 1);
+            presets.unshift(item);
+        } else if (direction === 'bottom') {
+            if (index === presets.length - 1) return;
+            presets.splice(index, 1);
+            presets.push(item);
+        } else {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= presets.length) return;
+            [presets[index], presets[newIndex]] = [presets[newIndex], presets[index]];
+        }
+        saveState();
+        renderPresetsList();
+        renderPresetsDropdown();
+    }
+
+    // --- Provider Logic ---
+    function renderProviderSelect() {
+        els.providerSelect.innerHTML = '';
+        STATE.config.providers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === STATE.config.activeProviderId) opt.selected = true;
+            els.providerSelect.appendChild(opt);
+        });
+    }
+
+    function renderProviderList() {
+        const container = document.getElementById('provider-list-container');
+        container.innerHTML = '';
+        
+        STATE.config.providers.forEach((p, index) => {
+            const div = document.createElement('div');
+            div.className = 'preset-list-item'; // Reuse preset styles
+            
+            const header = document.createElement('div');
+            header.className = 'preset-header';
+            
+            const name = document.createElement('div');
+            name.className = 'preset-name';
+            name.textContent = p.name;
+            
+            const actions = document.createElement('div');
+            actions.className = 'preset-actions';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm';
+            editBtn.textContent = '编辑 Edit';
+            editBtn.onclick = () => openProviderModal(index);
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-sm btn-danger';
+            delBtn.textContent = '删除 Delete';
+            delBtn.onclick = () => deleteProvider(index);
+            
+            actions.appendChild(editBtn);
+            actions.appendChild(delBtn);
+            
+            header.appendChild(name);
+            header.appendChild(actions);
+            
+            const preview = document.createElement('div');
+            preview.className = 'preset-preview';
+            preview.textContent = `${p.apiType === 'ollama' ? 'Ollama Native' : 'OpenAI'} • ${p.endpoint}`;
+            
+            div.appendChild(header);
+            div.appendChild(preview);
+            container.appendChild(div);
+        });
+    }
+
+    let currentProviderIndex = -1;
+
+    function openProviderModal(index = -1) {
+        currentProviderIndex = index;
+        const title = document.getElementById('provider-modal-title');
+        const nameInput = document.getElementById('provider-name-input');
+        const endpointInput = document.getElementById('provider-endpoint-input');
+        const tokenInput = document.getElementById('provider-token-input');
+        const apiTypeSelect = document.getElementById('provider-api-type');
+
+        if (index >= 0) {
+            const p = STATE.config.providers[index];
+            title.textContent = '编辑供应商 Edit Provider';
+            nameInput.value = p.name;
+            endpointInput.value = p.endpoint;
+            tokenInput.value = p.token || '';
+            apiTypeSelect.value = p.apiType || 'openai';
+        } else {
+            title.textContent = '新增供应商 Add Provider';
+            nameInput.value = '';
+            endpointInput.value = '';
+            tokenInput.value = '';
+            apiTypeSelect.value = 'openai';
+        }
+        
+        els.providerModal.showModal();
+    }
+
+    function saveProvider() {
+        const name = document.getElementById('provider-name-input').value.trim();
+        const endpointRaw = document.getElementById('provider-endpoint-input').value.trim();
+        const token = document.getElementById('provider-token-input').value.trim();
+        const apiType = document.getElementById('provider-api-type').value;
+
+        if (!name || !endpointRaw) {
+            alert('请填写名称和端点 Name and endpoint are required');
+            return;
+        }
+
+        const endpoint = sanitizeUrl(endpointRaw);
+        if (!endpoint) {
+             alert('无效的 URL Invalid URL');
+             return;
+        }
+
+        const providerData = {
+            id: currentProviderIndex >= 0 ? STATE.config.providers[currentProviderIndex].id : 'provider_' + Date.now(),
+            name,
+            endpoint,
+            token,
+            apiType
+        };
+
+        if (currentProviderIndex >= 0) {
+            STATE.config.providers[currentProviderIndex] = providerData;
+        } else {
+            STATE.config.providers.push(providerData);
+        }
+
+        // If we just added the first provider, make it active
+        if (STATE.config.providers.length === 1) {
+            STATE.config.activeProviderId = providerData.id;
+        }
+
+        saveState();
+        renderProviderList();
+        renderProviderSelect();
+        els.providerModal.close();
+        
+        // If active provider was edited, refetch models
+        if (STATE.config.activeProviderId === providerData.id) {
+            fetchModels();
+        }
+    }
+
+    function deleteProvider(index) {
+        if (STATE.config.providers.length <= 1) {
+            showToast('至少保留一个供应商 Keep at least one provider');
+            return;
+        }
+        
+        if (confirm('确认删除此供应商? Confirm delete?')) {
+            const p = STATE.config.providers[index];
+            const isActive = (p.id === STATE.config.activeProviderId);
+            
+            STATE.config.providers.splice(index, 1);
+            
+            if (isActive) {
+                STATE.config.activeProviderId = STATE.config.providers[0].id;
+                renderProviderSelect();
+                fetchModels();
+            }
+            
+            saveState();
+            renderProviderList();
+        }
+    }
+
+    // --- API & Optimization ---
+    function saveConfigFromUI() {
+        // Providers and presets are saved in their respective modals.
+        // Save disableThinking from checkbox
+        STATE.config.disableThinking = !!document.getElementById('disable-thinking-checkbox').checked;
+        saveState();
+    }
+
+    async function fetchModels() {
+        const provider = STATE.config.providers.find(p => p.id === STATE.config.activeProviderId);
+        if (!provider) return;
+
+        const endpoint = sanitizeUrl(provider.endpoint);
+        if (!endpoint) {
+            document.getElementById('model-error').textContent = '无效的端点 URL Invalid endpoint URL';
+            return;
+        }
+
+        const btn = document.getElementById('refresh-models-btn');
+        btn.disabled = true;
+
+        try {
+            let models = [];
+            const headers = {};
+            if (provider.token) {
+                headers['Authorization'] = `Bearer ${provider.token}`;
+            }
+
+            if (provider.apiType === 'ollama') {
+                const res = await fetchWithTimeout(`${endpoint}/api/tags`, { headers }, 15000);
+                if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+                const data = await res.json();
+                models = data.models.map(m => m.name);
+            } else {
+                const res = await fetchWithTimeout(`${endpoint}/v1/models`, { headers }, 15000);
+                if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.data || []);
+                models = list.map(m => m.id);
+            }
+
+            els.modelSelectMain.innerHTML = '<option value="" disabled>模型 Model...</option>';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (m === STATE.config.model) opt.selected = true;
+                els.modelSelectMain.appendChild(opt);
+            });
+            
+            if (!STATE.config.model && models.length > 0) {
+                els.modelSelectMain.value = models[0];
+                STATE.config.model = models[0];
+                saveState();
+            } else if (STATE.config.model) {
+                 // Check if saved model still exists, if not, keep it selected but maybe warn?
+                 // Standard HTML select behavior: if value matches option, it selects. 
+                 // If not, it shows empty or first disabled option.
+                 // We manually set value above, so if it's not in list, it might show blank.
+                 els.modelSelectMain.value = STATE.config.model;
+            }
+            
+            showToast(`找到 ${models.length} 个模型 Found ${models.length} models`);
+            document.getElementById('model-error').textContent = '';
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('model-error').textContent = `连接失败 Connection failed: ${e.message}`;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function performOptimization() {
+        const text = els.sourceText.value.trim();
+        if (!text) {
+            showToast('请输入提示词 Please enter a prompt');
+            return;
+        }
+        
+        if (!STATE.config.model) {
+            showToast('请先选择模型 Please select a model');
+            return;
+        }
+
+        const presetId = els.presetSelect.value;
+        const preset = STATE.config.presets.find(p => p.id === presetId);
+        if (!preset) return;
+
+        const provider = STATE.config.providers.find(p => p.id === STATE.config.activeProviderId);
+        if (!provider) {
+             showToast('请选择供应商 Please select a provider');
+             return;
+        }
+
+        const endpoint = sanitizeUrl(provider.endpoint);
+        if (!endpoint) {
+            showToast('无效的端点 URL Invalid endpoint URL');
+            return;
+        }
+
+        // Build system prompt with output language instruction
+        let systemPrompt = preset.systemPrompt;
+        if (STATE.outputLang === 'zh') {
+            systemPrompt += '\n\nIMPORTANT: You MUST output the improved prompt in Chinese (中文).';
+        } else if (STATE.outputLang === 'en') {
+            systemPrompt += '\n\nIMPORTANT: You MUST output the improved prompt in English.';
+        }
+
+        // Prepend /no_think if thinking mode is disabled
+        const userMessage = STATE.config.disableThinking ? '/no_think\n' + text : text;
+
+        setLoading(true);
+
+        try {
+            let optimizedText = '';
+            const headers = { 'Content-Type': 'application/json' };
+            if (provider.token) {
+                headers['Authorization'] = `Bearer ${provider.token}`;
+            }
+            
+            // Clear output area for streaming display
+            els.targetText.innerHTML = '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+            if (provider.apiType === 'ollama') {
+                await fetchStreaming(`${endpoint}/api/chat`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: STATE.config.model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userMessage }
+                        ],
+                        stream: true
+                    })
+                }, {
+                    idleTimeoutMs: 30000,
+                    onChunk(json) {
+                        // Ollama streaming: { message: { content: "..." }, done: false }
+                        const token = (json.message && json.message.content) || '';
+                        if (token) {
+                            optimizedText += token;
+                            els.targetText.textContent = optimizedText;
+                            updateTargetCharCount();
+                        }
+                    }
+                });
+
+            } else {
+                await fetchStreaming(`${endpoint}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: STATE.config.model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userMessage }
+                        ],
+                        temperature: 0.7,
+                        stream: true
+                    })
+                }, {
+                    idleTimeoutMs: 30000,
+                    onChunk(json) {
+                        // OpenAI streaming: { choices: [{ delta: { content: "..." } }] }
+                        const token = (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) || '';
+                        if (token) {
+                            optimizedText += token;
+                            els.targetText.textContent = optimizedText;
+                            updateTargetCharCount();
+                        }
+                    }
+                });
+            }
+
+            if (!optimizedText) throw new Error('模型返回空结果 Empty response from model');
+
+            els.targetText.innerText = optimizedText.trim();
+            updateTargetCharCount();
+            addToHistory(text, optimizedText.trim(), preset.name);
+
+        } catch (error) {
+            console.error(error);
+            els.targetText.innerHTML = `<span class="error-text">Error: ${escapeHtml(error.message)}</span>`;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            els.optimizeBtn.disabled = true;
+            els.optimizeBtnText.style.display = 'none';
+            els.spinner.style.display = 'block';
+        } else {
+            els.optimizeBtn.disabled = false;
+            els.optimizeBtnText.style.display = 'block';
+            els.spinner.style.display = 'none';
+        }
+    }
+
+    // --- History Logic ---
+    function addToHistory(userPrompt, optimizedPrompt, presetName) {
+        const item = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            model: STATE.config.model,
+            presetName: presetName,
+            userPrompt: userPrompt,
+            optimizedPrompt: optimizedPrompt
+        };
+
+        STATE.history.unshift(item);
+        if (STATE.history.length > 100) STATE.history.pop();
+        saveState();
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('history-container');
+        const emptyMsg = document.getElementById('empty-history');
+        
+        container.innerHTML = '';
+        
+        if (!STATE.history || STATE.history.length === 0) {
+            emptyMsg.style.display = 'block';
+            return;
+        }
+        
+        emptyMsg.style.display = 'none';
+        
+        STATE.history.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.onclick = (e) => {
+                if (e.target.closest('.delete-item')) return;
+                loadHistoryItem(item);
+            };
+
+            const info = document.createElement('div');
+            info.className = 'history-info';
+            
+            const meta = document.createElement('div');
+            meta.className = 'history-meta';
+            meta.textContent = `${item.date} • ${item.presetName} • ${item.model}`;
+            
+            const content = document.createElement('div');
+            content.className = 'history-content';
+            content.textContent = `${safeStringSlice(item.userPrompt, 100)}... → ${safeStringSlice(item.optimizedPrompt, 100)}...`;
+            
+            info.appendChild(meta);
+            info.appendChild(content);
+            
+            const actions = document.createElement('div');
+            actions.className = 'history-actions';
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'icon-btn delete-item';
+            delBtn.appendChild(createDeleteIcon());
+            delBtn.onclick = () => deleteHistoryItem(index);
+            
+            actions.appendChild(delBtn);
+            
+            div.appendChild(info);
+            div.appendChild(actions);
+            container.appendChild(div);
+        });
+    }
+
+    function loadHistoryItem(item) {
+        els.sourceText.value = item.userPrompt;
+        els.targetText.innerText = item.optimizedPrompt;
+        updateCharCount();
+        updateTargetCharCount();
+        autoGrowTextarea();
+        els.historyModal.close();
+    }
+
+    function deleteHistoryItem(index) {
+        STATE.history.splice(index, 1);
+        saveState();
+        renderHistory();
+    }
+
+    // --- Import/Export ---
+    function exportConfig() {
+        const data = {
+            config: STATE.config,
+            history: STATE.history,
+            lastUsedPresetId: STATE.lastUsedPresetId,
+            outputLang: STATE.outputLang,
+            exportDate: new Date().toISOString(),
+            app: 'prompt_gen'
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `prompt_gen_backup_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // --- 数据验证 ---
+    function validateProvider(p) {
+        if (!p || typeof p !== 'object') return false;
+        if (typeof p.name !== 'string' || p.name.length === 0 || p.name.length > 100) return false;
+        if (typeof p.endpoint !== 'string' || !sanitizeUrl(p.endpoint)) return false;
+        if (p.token && (typeof p.token !== 'string' || p.token.length > 500)) return false;
+        if (p.apiType && !['openai', 'ollama'].includes(p.apiType)) return false;
+        return true;
+    }
+
+    function validatePreset(p) {
+        if (!p || typeof p !== 'object') return false;
+        if (typeof p.name !== 'string' || p.name.length === 0 || p.name.length > 200) return false;
+        if (typeof p.systemPrompt !== 'string' || p.systemPrompt.length === 0 || p.systemPrompt.length > 10000) return false;
+        return true;
+    }
+
+    function validateHistoryItem(h) {
+        if (!h || typeof h !== 'object') return false;
+        if (typeof h.userPrompt !== 'string' || h.userPrompt.length > 2500) return false;
+        if (typeof h.optimizedPrompt !== 'string' || h.optimizedPrompt.length > 8000) return false;
+        if (h.model && (typeof h.model !== 'string' || h.model.length > 200)) return false;
+        if (h.presetName && (typeof h.presetName !== 'string' || h.presetName.length > 200)) return false;
+        return true;
+    }
+
+    function importConfig(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('文件过大（最大 5MB）\nFile too large (max 5MB)');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (typeof data !== 'object' || data === null) throw new Error('Invalid data');
+
+                if (data.app !== 'prompt_gen') {
+                    if (!confirm('此文件似乎不是 Prompt Gen 的备份文件。是否继续？\nFile format looks incorrect. Continue?')) {
+                        return;
+                    }
+                }
+                
+                if (confirm('导入将覆盖当前配置和历史记录。是否继续？\nOverwrite current settings and history?')) {
+                    if (data.config && typeof data.config === 'object') {
+                        const cfg = data.config;
+
+                        // 旧格式迁移
+                        if (cfg.backend && !cfg.providers) {
+                            cfg.providers = [
+                                { id: 'provider_ollama', name: 'Ollama', endpoint: cfg.ollamaUrl || 'http://localhost:11434', token: '', apiType: 'openai' },
+                                { id: 'provider_lmstudio', name: 'LM Studio', endpoint: cfg.lmStudioUrl || 'http://127.0.0.1:1234', token: '', apiType: 'openai' }
+                            ];
+                            cfg.activeProviderId = cfg.backend === 'lmstudio' ? 'provider_lmstudio' : 'provider_ollama';
+                            delete cfg.backend;
+                            delete cfg.ollamaUrl;
+                            delete cfg.lmStudioUrl;
+                        }
+
+                        // 验证供应商
+                        if (Array.isArray(cfg.providers)) {
+                            cfg.providers = cfg.providers.filter(validateProvider);
+                        }
+                        if (!Array.isArray(cfg.providers) || cfg.providers.length === 0) {
+                            cfg.providers = JSON.parse(JSON.stringify(DEFAULT_PROVIDERS));
+                            cfg.activeProviderId = 'provider_ollama';
+                        }
+
+                        // 验证预设
+                        if (Array.isArray(cfg.presets)) {
+                            cfg.presets = cfg.presets.filter(validatePreset);
+                        }
+                        if (!Array.isArray(cfg.presets) || cfg.presets.length === 0) {
+                            cfg.presets = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+                        }
+
+                        // 验证 model 字段
+                        if (cfg.model && typeof cfg.model !== 'string') cfg.model = '';
+
+                        STATE.config = pickKnownKeys(cfg, ['providers', 'activeProviderId', 'model', 'presets', 'disableThinking']);
+                    }
+                    
+                    // 验证历史记录
+                    if (Array.isArray(data.history)) {
+                        STATE.history = data.history.filter(validateHistoryItem).slice(0, 100);
+                    }
+
+                    if (data.lastUsedPresetId && typeof data.lastUsedPresetId === 'string') {
+                        STATE.lastUsedPresetId = data.lastUsedPresetId;
+                    }
+                    if (data.outputLang && ['auto', 'zh', 'en'].includes(data.outputLang)) {
+                        STATE.outputLang = data.outputLang;
+                        for (const radio of els.outputLangRadios) {
+                            radio.checked = (radio.value === STATE.outputLang);
+                        }
+                    }
+                    
+                    saveState();
+                    renderPresetsDropdown();
+                    renderPresetsList();
+                    renderProviderSelect();
+                    renderProviderList();
+                    
+                    fetchModels().catch(() => {});
+                    showToast('导入成功 Imported successfully');
+                    e.target.value = '';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('导入失败：文件格式错误\nImport failed: Invalid JSON');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // --- Run ---
+    init();
+
+</script>
+</body>
+</html>

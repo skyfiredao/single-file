@@ -1,0 +1,1550 @@
+<!--
+  Cat md - A zero-dependency, single-file lightweight markdown viewer
+  Copyright (C) 2026  dw with opencode
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cat md</title>
+<style>
+  :root {
+    --bg-body: #fdfbf7;
+    --bg-sidebar: #f7f5f2;
+    --bg-white: #ffffff;
+    --text-main: #2d3436;
+    --text-secondary: #636e72;
+    --accent: #00b894;
+    --accent-hover: #00a381;
+    --highlight: #ffeaa7;
+    --border: rgba(0,0,0,0.06);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.05);
+    --radius-sm: 6px;
+    --radius-md: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    color: var(--text-main); 
+    background: var(--bg-body);
+    line-height: 1.6;
+  }
+
+  /* Top bar */
+  .topbar { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    background: var(--bg-white); 
+    border-bottom: 1px solid var(--border); 
+    padding: 12px 24px; 
+    font-size: 14px; 
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+  }
+  .topbar .left { display: flex; align-items: center; gap: 12px; }
+  .topbar .title { 
+    font-weight: 700; 
+    font-size: 18px; 
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+  }
+  .readonly-badge { 
+    background: #ffeaa7; 
+    color: #d35400; 
+    padding: 4px 10px; 
+    border-radius: 20px; 
+    font-size: 12px; 
+    font-weight: 600;
+    display: none; 
+  }
+  
+  /* Buttons Global */
+  button {
+    font-size: 13px;
+    padding: 6px 16px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    background: var(--bg-white);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    font-weight: 500;
+  }
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    background: #fff;
+    color: var(--accent);
+  }
+  button:active { transform: translateY(0); }
+  
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 184, 148, 0.3);
+  }
+  button.primary:hover {
+    background: var(--accent-hover);
+    color: #fff;
+  }
+
+  /* Main layout */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { 
+    width: 300px; 
+    min-width: 260px; 
+    border-right: 1px solid var(--border); 
+    display: flex; 
+    flex-direction: column; 
+    background: var(--bg-sidebar); 
+  }
+  .sidebar-toolbar { 
+    display: flex; 
+    gap: 8px; 
+    padding: 12px 16px; 
+    border-bottom: 1px solid var(--border); 
+    flex-wrap: wrap; 
+  }
+  .sidebar-toolbar button {
+    font-size: 12px;
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: none;
+  }
+  .sidebar-toolbar button:hover {
+    background: #fff;
+    border-color: var(--accent);
+  }
+  
+  .file-tree { flex: 1; overflow-y: auto; padding: 10px; font-size: 14px; }
+  .tree-item { 
+    display: flex; 
+    align-items: center; 
+    padding: 6px 12px; 
+    cursor: pointer; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease;
+    margin-bottom: 2px;
+    color: var(--text-secondary);
+  }
+  .tree-item:hover { background: rgba(0,0,0,0.04); color: var(--text-main); }
+  .tree-item.active { 
+    background: #fff; 
+    color: var(--accent); 
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+  .tree-item .icon { margin-right: 8px; flex-shrink: 0; width: 18px; text-align: center; font-size: 16px; }
+  .tree-indent { display: inline-block; width: 18px; flex-shrink: 0; }
+
+  /* Editor area */
+  .editor-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-white); }
+  .editor-toolbar { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    padding: 10px 24px; 
+    border-bottom: 1px solid var(--border); 
+    background: var(--bg-white); 
+    font-size: 14px; 
+  }
+  .editor-toolbar button { 
+    padding: 5px 16px; 
+    font-size: 12px; 
+    border: 1px solid var(--border); 
+  }
+  .editor-toolbar .filename { 
+    font-weight: 600; 
+    flex: 1; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+    color: var(--text-main);
+  }
+  .editor-toolbar .modified { 
+    color: var(--accent); 
+    margin-left: 8px; 
+    font-size: 12px; 
+    background: rgba(0, 184, 148, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .editor-content { flex: 1; position: relative; overflow: hidden; }
+  .editor-content textarea { 
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; 
+    height: 100%; 
+    border: none; 
+    outline: none; 
+    resize: none; 
+    padding: 30px 40px; 
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace; 
+    font-size: 15px; 
+    line-height: 1.7; 
+    tab-size: 4; 
+    color: var(--text-main);
+  }
+  .preview { 
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    overflow-y: auto; 
+    padding: 30px 40px; 
+    display: none; 
+    line-height: 1.8; 
+    font-size: 15px; 
+    color: var(--text-main);
+  }
+
+  /* Markdown preview styles */
+  .preview h1, .preview h2, .preview h3, .preview h4, .preview h5, .preview h6 { margin: 24px 0 16px 0; color: #2d3436; }
+  .preview h1 { font-size: 2.2em; border-bottom: 2px solid var(--bg-sidebar); padding-bottom: 8px; letter-spacing: -1px; }
+  .preview h2 { font-size: 1.8em; border-bottom: 1px solid var(--bg-sidebar); padding-bottom: 6px; }
+  .preview h3 { font-size: 1.4em; }
+  .preview p { margin: 16px 0; }
+  .preview strong { font-weight: 700; color: #000; }
+  .preview em { font-style: italic; color: var(--text-secondary); }
+  .preview code { background: #f1f2f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #d63031; }
+  .preview pre { 
+    background: #f8f9fa; 
+    border: 1px solid var(--border); 
+    border-radius: 8px; 
+    padding: 16px 20px; 
+    overflow-x: auto; 
+    margin: 20px 0; 
+  }
+  .preview pre code { background: none; padding: 0; color: inherit; }
+  .preview table { border-collapse: collapse; margin: 20px 0; }
+  .preview th, .preview td { border: 1px solid var(--border); padding: 12px 16px; text-align: left; }
+  .preview th { background: var(--bg-sidebar); font-weight: 600; }
+  .preview ul, .preview ol { padding-left: 28px; margin: 16px 0; }
+  .preview li { margin: 6px 0; }
+  .preview a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border 0.2s; }
+  .preview a:hover { border-bottom-color: var(--accent); }
+  .preview blockquote { border-left: 4px solid var(--accent); padding-left: 20px; color: var(--text-secondary); margin: 20px 0; background: rgba(0, 184, 148, 0.05); padding: 16px 20px; border-radius: 0 8px 8px 0; }
+  .preview pre.txt-preview { white-space: pre-wrap; word-wrap: break-word; tab-size: 4; font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 14px; line-height: 1.7; margin: 0; background: none; border: none; border-radius: 0; padding: 0; }
+  .preview pre.code-preview { background: #fff; border: none; border-radius: 0; padding: 0; margin: 0; }
+  .preview pre.code-preview code { font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; tab-size: 4; padding: 0; background: none; }
+
+  /* Welcome screen */
+  .welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--text-secondary); text-align: center; padding: 40px; }
+  .welcome button { 
+    margin-top: 24px; 
+    font-size: 15px; 
+    padding: 10px 32px; 
+    border: none; 
+    color: #fff; 
+    border-radius: 24px; 
+    background: var(--accent); 
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.4);
+  }
+  .welcome button:hover { background: var(--accent-hover); transform: translateY(-2px); }
+
+  /* Dialog overlay */
+  .dialog-overlay { 
+    position: fixed; 
+    top: 0; left: 0; right: 0; bottom: 0; 
+    background: rgba(45, 52, 54, 0.4); 
+    backdrop-filter: blur(4px);
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 1000; 
+    opacity: 0;
+    animation: fadeIn 0.2s forwards;
+  }
+  @keyframes fadeIn { to { opacity: 1; } }
+  
+  .dialog { 
+    background: #fff; 
+    border-radius: var(--radius-md); 
+    padding: 24px 32px; 
+    min-width: 360px; 
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15); 
+    transform: scale(0.95);
+    animation: scaleIn 0.2s 0.1s forwards;
+  }
+  @keyframes scaleIn { to { transform: scale(1); } }
+  
+  .dialog h3 { margin-bottom: 20px; font-size: 18px; font-weight: 600; color: var(--text-main); }
+  .dialog input { 
+    width: 100%; 
+    padding: 12px 16px; 
+    border: 1px solid #dfe6e9; 
+    border-radius: var(--radius-sm); 
+    font-size: 15px; 
+    margin-bottom: 24px; 
+    outline: none; 
+    transition: border 0.2s;
+  }
+  .dialog input:focus { border-color: var(--accent); }
+  .dialog .btns { display: flex; justify-content: flex-end; gap: 12px; }
+  .dialog .btns button { 
+    padding: 8px 20px; 
+    border-radius: 20px; 
+    border: 1px solid #dfe6e9; 
+    background: #fff; 
+    font-size: 14px; 
+    box-shadow: none;
+  }
+  .dialog .btns button:hover { background: #f5f5f5; }
+  .dialog .btns button.primary { 
+    background: var(--accent); 
+    color: #fff; 
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+  }
+  .dialog .btns button.primary:hover { background: var(--accent-hover); }
+
+/* highlight.js GitHub theme */
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
+  Theme: GitHub
+  Description: Light theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+
+  Outdated base version: https://github.com/primer/github-syntax-light
+  Current colors taken from GitHub's CSS
+*/.hljs{color:#24292e;background:#fff}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#d73a49}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#6f42c1}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#005cc5}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#032f62}.hljs-built_in,.hljs-symbol{color:#e36209}.hljs-code,.hljs-comment,.hljs-formula{color:#6a737d}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#22863a}.hljs-subst{color:#24292e}.hljs-section{color:#005cc5;font-weight:700}.hljs-bullet{color:#735c0f}.hljs-emphasis{color:#24292e;font-style:italic}.hljs-strong{color:#24292e;font-weight:700}.hljs-addition{color:#22863a;background-color:#f0fff4}.hljs-deletion{color:#b31d28;background-color:#ffeef0}
+
+</style>
+<script>/* highlight.js v11.9.0 */
+/*!
+  Highlight.js v11.9.0 (git: f47103d4f1)
+  (c) 2006-2023 undefined and other contributors
+  License: BSD-3-Clause
+ */
+var hljs=function(){"use strict";function e(n){
+return n instanceof Map?n.clear=n.delete=n.set=()=>{
+throw Error("map is read-only")}:n instanceof Set&&(n.add=n.clear=n.delete=()=>{
+throw Error("set is read-only")
+}),Object.freeze(n),Object.getOwnPropertyNames(n).forEach((t=>{
+const a=n[t],i=typeof a;"object"!==i&&"function"!==i||Object.isFrozen(a)||e(a)
+})),n}class n{constructor(e){
+void 0===e.data&&(e.data={}),this.data=e.data,this.isMatchIgnored=!1}
+ignoreMatch(){this.isMatchIgnored=!0}}function t(e){
+return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#x27;")
+}function a(e,...n){const t=Object.create(null);for(const n in e)t[n]=e[n]
+;return n.forEach((e=>{for(const n in e)t[n]=e[n]})),t}const i=e=>!!e.scope
+;class r{constructor(e,n){
+this.buffer="",this.classPrefix=n.classPrefix,e.walk(this)}addText(e){
+this.buffer+=t(e)}openNode(e){if(!i(e))return;const n=((e,{prefix:n})=>{
+if(e.startsWith("language:"))return e.replace("language:","language-")
+;if(e.includes(".")){const t=e.split(".")
+;return[`${n}${t.shift()}`,...t.map(((e,n)=>`${e}${"_".repeat(n+1)}`))].join(" ")
+}return`${n}${e}`})(e.scope,{prefix:this.classPrefix});this.span(n)}
+closeNode(e){i(e)&&(this.buffer+="</span>")}value(){return this.buffer}span(e){
+this.buffer+=`<span class="${e}">`}}const s=(e={})=>{const n={children:[]}
+;return Object.assign(n,e),n};class o{constructor(){
+this.rootNode=s(),this.stack=[this.rootNode]}get top(){
+return this.stack[this.stack.length-1]}get root(){return this.rootNode}add(e){
+this.top.children.push(e)}openNode(e){const n=s({scope:e})
+;this.add(n),this.stack.push(n)}closeNode(){
+if(this.stack.length>1)return this.stack.pop()}closeAllNodes(){
+for(;this.closeNode(););}toJSON(){return JSON.stringify(this.rootNode,null,4)}
+walk(e){return this.constructor._walk(e,this.rootNode)}static _walk(e,n){
+return"string"==typeof n?e.addText(n):n.children&&(e.openNode(n),
+n.children.forEach((n=>this._walk(e,n))),e.closeNode(n)),e}static _collapse(e){
+"string"!=typeof e&&e.children&&(e.children.every((e=>"string"==typeof e))?e.children=[e.children.join("")]:e.children.forEach((e=>{
+o._collapse(e)})))}}class l extends o{constructor(e){super(),this.options=e}
+addText(e){""!==e&&this.add(e)}startScope(e){this.openNode(e)}endScope(){
+this.closeNode()}__addSublanguage(e,n){const t=e.root
+;n&&(t.scope="language:"+n),this.add(t)}toHTML(){
+return new r(this,this.options).value()}finalize(){
+return this.closeAllNodes(),!0}}function c(e){
+return e?"string"==typeof e?e:e.source:null}function d(e){return b("(?=",e,")")}
+function g(e){return b("(?:",e,")*")}function u(e){return b("(?:",e,")?")}
+function b(...e){return e.map((e=>c(e))).join("")}function m(...e){const n=(e=>{
+const n=e[e.length-1]
+;return"object"==typeof n&&n.constructor===Object?(e.splice(e.length-1,1),n):{}
+})(e);return"("+(n.capture?"":"?:")+e.map((e=>c(e))).join("|")+")"}
+function p(e){return RegExp(e.toString()+"|").exec("").length-1}
+const _=/\[(?:[^\\\]]|\\.)*\]|\(\??|\\([1-9][0-9]*)|\\./
+;function h(e,{joinWith:n}){let t=0;return e.map((e=>{t+=1;const n=t
+;let a=c(e),i="";for(;a.length>0;){const e=_.exec(a);if(!e){i+=a;break}
+i+=a.substring(0,e.index),
+a=a.substring(e.index+e[0].length),"\\"===e[0][0]&&e[1]?i+="\\"+(Number(e[1])+n):(i+=e[0],
+"("===e[0]&&t++)}return i})).map((e=>`(${e})`)).join(n)}
+const f="[a-zA-Z]\\w*",E="[a-zA-Z_]\\w*",y="\\b\\d+(\\.\\d+)?",N="(-?)(\\b0[xX][a-fA-F0-9]+|(\\b\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)",w="\\b(0b[01]+)",v={
+begin:"\\\\[\\s\\S]",relevance:0},O={scope:"string",begin:"'",end:"'",
+illegal:"\\n",contains:[v]},k={scope:"string",begin:'"',end:'"',illegal:"\\n",
+contains:[v]},x=(e,n,t={})=>{const i=a({scope:"comment",begin:e,end:n,
+contains:[]},t);i.contains.push({scope:"doctag",
+begin:"[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
+end:/(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,excludeBegin:!0,relevance:0})
+;const r=m("I","a","is","so","us","to","at","if","in","it","on",/[A-Za-z]+['](d|ve|re|ll|t|s|n)/,/[A-Za-z]+[-][a-z]+/,/[A-Za-z][a-z]{2,}/)
+;return i.contains.push({begin:b(/[ ]+/,"(",r,/[.]?[:]?([.][ ]|[ ])/,"){3}")}),i
+},M=x("//","$"),S=x("/\\*","\\*/"),A=x("#","$");var C=Object.freeze({
+__proto__:null,APOS_STRING_MODE:O,BACKSLASH_ESCAPE:v,BINARY_NUMBER_MODE:{
+scope:"number",begin:w,relevance:0},BINARY_NUMBER_RE:w,COMMENT:x,
+C_BLOCK_COMMENT_MODE:S,C_LINE_COMMENT_MODE:M,C_NUMBER_MODE:{scope:"number",
+begin:N,relevance:0},C_NUMBER_RE:N,END_SAME_AS_BEGIN:e=>Object.assign(e,{
+"on:begin":(e,n)=>{n.data._beginMatch=e[1]},"on:end":(e,n)=>{
+n.data._beginMatch!==e[1]&&n.ignoreMatch()}}),HASH_COMMENT_MODE:A,IDENT_RE:f,
+MATCH_NOTHING_RE:/\b\B/,METHOD_GUARD:{begin:"\\.\\s*"+E,relevance:0},
+NUMBER_MODE:{scope:"number",begin:y,relevance:0},NUMBER_RE:y,
+PHRASAL_WORDS_MODE:{
+begin:/\b(a|an|the|are|I'm|isn't|don't|doesn't|won't|but|just|should|pretty|simply|enough|gonna|going|wtf|so|such|will|you|your|they|like|more)\b/
+},QUOTE_STRING_MODE:k,REGEXP_MODE:{scope:"regexp",begin:/\/(?=[^/\n]*\/)/,
+end:/\/[gimuy]*/,contains:[v,{begin:/\[/,end:/\]/,relevance:0,contains:[v]}]},
+RE_STARTERS_RE:"!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|-|-=|/=|/|:|;|<<|<<=|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~",
+SHEBANG:(e={})=>{const n=/^#![ ]*\//
+;return e.binary&&(e.begin=b(n,/.*\b/,e.binary,/\b.*/)),a({scope:"meta",begin:n,
+end:/$/,relevance:0,"on:begin":(e,n)=>{0!==e.index&&n.ignoreMatch()}},e)},
+TITLE_MODE:{scope:"title",begin:f,relevance:0},UNDERSCORE_IDENT_RE:E,
+UNDERSCORE_TITLE_MODE:{scope:"title",begin:E,relevance:0}});function T(e,n){
+"."===e.input[e.index-1]&&n.ignoreMatch()}function R(e,n){
+void 0!==e.className&&(e.scope=e.className,delete e.className)}function D(e,n){
+n&&e.beginKeywords&&(e.begin="\\b("+e.beginKeywords.split(" ").join("|")+")(?!\\.)(?=\\b|\\s)",
+e.__beforeBegin=T,e.keywords=e.keywords||e.beginKeywords,delete e.beginKeywords,
+void 0===e.relevance&&(e.relevance=0))}function I(e,n){
+Array.isArray(e.illegal)&&(e.illegal=m(...e.illegal))}function L(e,n){
+if(e.match){
+if(e.begin||e.end)throw Error("begin & end are not supported with match")
+;e.begin=e.match,delete e.match}}function B(e,n){
+void 0===e.relevance&&(e.relevance=1)}const $=(e,n)=>{if(!e.beforeMatch)return
+;if(e.starts)throw Error("beforeMatch cannot be used with starts")
+;const t=Object.assign({},e);Object.keys(e).forEach((n=>{delete e[n]
+})),e.keywords=t.keywords,e.begin=b(t.beforeMatch,d(t.begin)),e.starts={
+relevance:0,contains:[Object.assign(t,{endsParent:!0})]
+},e.relevance=0,delete t.beforeMatch
+},z=["of","and","for","in","not","or","if","then","parent","list","value"],F="keyword"
+;function U(e,n,t=F){const a=Object.create(null)
+;return"string"==typeof e?i(t,e.split(" ")):Array.isArray(e)?i(t,e):Object.keys(e).forEach((t=>{
+Object.assign(a,U(e[t],n,t))})),a;function i(e,t){
+n&&(t=t.map((e=>e.toLowerCase()))),t.forEach((n=>{const t=n.split("|")
+;a[t[0]]=[e,j(t[0],t[1])]}))}}function j(e,n){
+return n?Number(n):(e=>z.includes(e.toLowerCase()))(e)?0:1}const P={},K=e=>{
+console.error(e)},H=(e,...n)=>{console.log("WARN: "+e,...n)},q=(e,n)=>{
+P[`${e}/${n}`]||(console.log(`Deprecated as of ${e}. ${n}`),P[`${e}/${n}`]=!0)
+},G=Error();function Z(e,n,{key:t}){let a=0;const i=e[t],r={},s={}
+;for(let e=1;e<=n.length;e++)s[e+a]=i[e],r[e+a]=!0,a+=p(n[e-1])
+;e[t]=s,e[t]._emit=r,e[t]._multi=!0}function W(e){(e=>{
+e.scope&&"object"==typeof e.scope&&null!==e.scope&&(e.beginScope=e.scope,
+delete e.scope)})(e),"string"==typeof e.beginScope&&(e.beginScope={
+_wrap:e.beginScope}),"string"==typeof e.endScope&&(e.endScope={_wrap:e.endScope
+}),(e=>{if(Array.isArray(e.begin)){
+if(e.skip||e.excludeBegin||e.returnBegin)throw K("skip, excludeBegin, returnBegin not compatible with beginScope: {}"),
+G
+;if("object"!=typeof e.beginScope||null===e.beginScope)throw K("beginScope must be object"),
+G;Z(e,e.begin,{key:"beginScope"}),e.begin=h(e.begin,{joinWith:""})}})(e),(e=>{
+if(Array.isArray(e.end)){
+if(e.skip||e.excludeEnd||e.returnEnd)throw K("skip, excludeEnd, returnEnd not compatible with endScope: {}"),
+G
+;if("object"!=typeof e.endScope||null===e.endScope)throw K("endScope must be object"),
+G;Z(e,e.end,{key:"endScope"}),e.end=h(e.end,{joinWith:""})}})(e)}function Q(e){
+function n(n,t){
+return RegExp(c(n),"m"+(e.case_insensitive?"i":"")+(e.unicodeRegex?"u":"")+(t?"g":""))
+}class t{constructor(){
+this.matchIndexes={},this.regexes=[],this.matchAt=1,this.position=0}
+addRule(e,n){
+n.position=this.position++,this.matchIndexes[this.matchAt]=n,this.regexes.push([n,e]),
+this.matchAt+=p(e)+1}compile(){0===this.regexes.length&&(this.exec=()=>null)
+;const e=this.regexes.map((e=>e[1]));this.matcherRe=n(h(e,{joinWith:"|"
+}),!0),this.lastIndex=0}exec(e){this.matcherRe.lastIndex=this.lastIndex
+;const n=this.matcherRe.exec(e);if(!n)return null
+;const t=n.findIndex(((e,n)=>n>0&&void 0!==e)),a=this.matchIndexes[t]
+;return n.splice(0,t),Object.assign(n,a)}}class i{constructor(){
+this.rules=[],this.multiRegexes=[],
+this.count=0,this.lastIndex=0,this.regexIndex=0}getMatcher(e){
+if(this.multiRegexes[e])return this.multiRegexes[e];const n=new t
+;return this.rules.slice(e).forEach((([e,t])=>n.addRule(e,t))),
+n.compile(),this.multiRegexes[e]=n,n}resumingScanAtSamePosition(){
+return 0!==this.regexIndex}considerAll(){this.regexIndex=0}addRule(e,n){
+this.rules.push([e,n]),"begin"===n.type&&this.count++}exec(e){
+const n=this.getMatcher(this.regexIndex);n.lastIndex=this.lastIndex
+;let t=n.exec(e)
+;if(this.resumingScanAtSamePosition())if(t&&t.index===this.lastIndex);else{
+const n=this.getMatcher(0);n.lastIndex=this.lastIndex+1,t=n.exec(e)}
+return t&&(this.regexIndex+=t.position+1,
+this.regexIndex===this.count&&this.considerAll()),t}}
+if(e.compilerExtensions||(e.compilerExtensions=[]),
+e.contains&&e.contains.includes("self"))throw Error("ERR: contains `self` is not supported at the top-level of a language.  See documentation.")
+;return e.classNameAliases=a(e.classNameAliases||{}),function t(r,s){const o=r
+;if(r.isCompiled)return o
+;[R,L,W,$].forEach((e=>e(r,s))),e.compilerExtensions.forEach((e=>e(r,s))),
+r.__beforeBegin=null,[D,I,B].forEach((e=>e(r,s))),r.isCompiled=!0;let l=null
+;return"object"==typeof r.keywords&&r.keywords.$pattern&&(r.keywords=Object.assign({},r.keywords),
+l=r.keywords.$pattern,
+delete r.keywords.$pattern),l=l||/\w+/,r.keywords&&(r.keywords=U(r.keywords,e.case_insensitive)),
+o.keywordPatternRe=n(l,!0),
+s&&(r.begin||(r.begin=/\B|\b/),o.beginRe=n(o.begin),r.end||r.endsWithParent||(r.end=/\B|\b/),
+r.end&&(o.endRe=n(o.end)),
+o.terminatorEnd=c(o.end)||"",r.endsWithParent&&s.terminatorEnd&&(o.terminatorEnd+=(r.end?"|":"")+s.terminatorEnd)),
+r.illegal&&(o.illegalRe=n(r.illegal)),
+r.contains||(r.contains=[]),r.contains=[].concat(...r.contains.map((e=>(e=>(e.variants&&!e.cachedVariants&&(e.cachedVariants=e.variants.map((n=>a(e,{
+variants:null},n)))),e.cachedVariants?e.cachedVariants:X(e)?a(e,{
+starts:e.starts?a(e.starts):null
+}):Object.isFrozen(e)?a(e):e))("self"===e?r:e)))),r.contains.forEach((e=>{t(e,o)
+})),r.starts&&t(r.starts,s),o.matcher=(e=>{const n=new i
+;return e.contains.forEach((e=>n.addRule(e.begin,{rule:e,type:"begin"
+}))),e.terminatorEnd&&n.addRule(e.terminatorEnd,{type:"end"
+}),e.illegal&&n.addRule(e.illegal,{type:"illegal"}),n})(o),o}(e)}function X(e){
+return!!e&&(e.endsWithParent||X(e.starts))}class V extends Error{
+constructor(e,n){super(e),this.name="HTMLInjectionError",this.html=n}}
+const J=t,Y=a,ee=Symbol("nomatch"),ne=t=>{
+const a=Object.create(null),i=Object.create(null),r=[];let s=!0
+;const o="Could not find the language '{}', did you forget to load/include a language module?",c={
+disableAutodetect:!0,name:"Plain text",contains:[]};let p={
+ignoreUnescapedHTML:!1,throwUnescapedHTML:!1,noHighlightRe:/^(no-?highlight)$/i,
+languageDetectRe:/\blang(?:uage)?-([\w-]+)\b/i,classPrefix:"hljs-",
+cssSelector:"pre code",languages:null,__emitter:l};function _(e){
+return p.noHighlightRe.test(e)}function h(e,n,t){let a="",i=""
+;"object"==typeof n?(a=e,
+t=n.ignoreIllegals,i=n.language):(q("10.7.0","highlight(lang, code, ...args) has been deprecated."),
+q("10.7.0","Please use highlight(code, options) instead.\nhttps://github.com/highlightjs/highlight.js/issues/2277"),
+i=e,a=n),void 0===t&&(t=!0);const r={code:a,language:i};x("before:highlight",r)
+;const s=r.result?r.result:f(r.language,r.code,t)
+;return s.code=r.code,x("after:highlight",s),s}function f(e,t,i,r){
+const l=Object.create(null);function c(){if(!x.keywords)return void S.addText(A)
+;let e=0;x.keywordPatternRe.lastIndex=0;let n=x.keywordPatternRe.exec(A),t=""
+;for(;n;){t+=A.substring(e,n.index)
+;const i=w.case_insensitive?n[0].toLowerCase():n[0],r=(a=i,x.keywords[a]);if(r){
+const[e,a]=r
+;if(S.addText(t),t="",l[i]=(l[i]||0)+1,l[i]<=7&&(C+=a),e.startsWith("_"))t+=n[0];else{
+const t=w.classNameAliases[e]||e;g(n[0],t)}}else t+=n[0]
+;e=x.keywordPatternRe.lastIndex,n=x.keywordPatternRe.exec(A)}var a
+;t+=A.substring(e),S.addText(t)}function d(){null!=x.subLanguage?(()=>{
+if(""===A)return;let e=null;if("string"==typeof x.subLanguage){
+if(!a[x.subLanguage])return void S.addText(A)
+;e=f(x.subLanguage,A,!0,M[x.subLanguage]),M[x.subLanguage]=e._top
+}else e=E(A,x.subLanguage.length?x.subLanguage:null)
+;x.relevance>0&&(C+=e.relevance),S.__addSublanguage(e._emitter,e.language)
+})():c(),A=""}function g(e,n){
+""!==e&&(S.startScope(n),S.addText(e),S.endScope())}function u(e,n){let t=1
+;const a=n.length-1;for(;t<=a;){if(!e._emit[t]){t++;continue}
+const a=w.classNameAliases[e[t]]||e[t],i=n[t];a?g(i,a):(A=i,c(),A=""),t++}}
+function b(e,n){
+return e.scope&&"string"==typeof e.scope&&S.openNode(w.classNameAliases[e.scope]||e.scope),
+e.beginScope&&(e.beginScope._wrap?(g(A,w.classNameAliases[e.beginScope._wrap]||e.beginScope._wrap),
+A=""):e.beginScope._multi&&(u(e.beginScope,n),A="")),x=Object.create(e,{parent:{
+value:x}}),x}function m(e,t,a){let i=((e,n)=>{const t=e&&e.exec(n)
+;return t&&0===t.index})(e.endRe,a);if(i){if(e["on:end"]){const a=new n(e)
+;e["on:end"](t,a),a.isMatchIgnored&&(i=!1)}if(i){
+for(;e.endsParent&&e.parent;)e=e.parent;return e}}
+if(e.endsWithParent)return m(e.parent,t,a)}function _(e){
+return 0===x.matcher.regexIndex?(A+=e[0],1):(D=!0,0)}function h(e){
+const n=e[0],a=t.substring(e.index),i=m(x,e,a);if(!i)return ee;const r=x
+;x.endScope&&x.endScope._wrap?(d(),
+g(n,x.endScope._wrap)):x.endScope&&x.endScope._multi?(d(),
+u(x.endScope,e)):r.skip?A+=n:(r.returnEnd||r.excludeEnd||(A+=n),
+d(),r.excludeEnd&&(A=n));do{
+x.scope&&S.closeNode(),x.skip||x.subLanguage||(C+=x.relevance),x=x.parent
+}while(x!==i.parent);return i.starts&&b(i.starts,e),r.returnEnd?0:n.length}
+let y={};function N(a,r){const o=r&&r[0];if(A+=a,null==o)return d(),0
+;if("begin"===y.type&&"end"===r.type&&y.index===r.index&&""===o){
+if(A+=t.slice(r.index,r.index+1),!s){const n=Error(`0 width match regex (${e})`)
+;throw n.languageName=e,n.badRule=y.rule,n}return 1}
+if(y=r,"begin"===r.type)return(e=>{
+const t=e[0],a=e.rule,i=new n(a),r=[a.__beforeBegin,a["on:begin"]]
+;for(const n of r)if(n&&(n(e,i),i.isMatchIgnored))return _(t)
+;return a.skip?A+=t:(a.excludeBegin&&(A+=t),
+d(),a.returnBegin||a.excludeBegin||(A=t)),b(a,e),a.returnBegin?0:t.length})(r)
+;if("illegal"===r.type&&!i){
+const e=Error('Illegal lexeme "'+o+'" for mode "'+(x.scope||"<unnamed>")+'"')
+;throw e.mode=x,e}if("end"===r.type){const e=h(r);if(e!==ee)return e}
+if("illegal"===r.type&&""===o)return 1
+;if(R>1e5&&R>3*r.index)throw Error("potential infinite loop, way more iterations than matches")
+;return A+=o,o.length}const w=v(e)
+;if(!w)throw K(o.replace("{}",e)),Error('Unknown language: "'+e+'"')
+;const O=Q(w);let k="",x=r||O;const M={},S=new p.__emitter(p);(()=>{const e=[]
+;for(let n=x;n!==w;n=n.parent)n.scope&&e.unshift(n.scope)
+;e.forEach((e=>S.openNode(e)))})();let A="",C=0,T=0,R=0,D=!1;try{
+if(w.__emitTokens)w.__emitTokens(t,S);else{for(x.matcher.considerAll();;){
+R++,D?D=!1:x.matcher.considerAll(),x.matcher.lastIndex=T
+;const e=x.matcher.exec(t);if(!e)break;const n=N(t.substring(T,e.index),e)
+;T=e.index+n}N(t.substring(T))}return S.finalize(),k=S.toHTML(),{language:e,
+value:k,relevance:C,illegal:!1,_emitter:S,_top:x}}catch(n){
+if(n.message&&n.message.includes("Illegal"))return{language:e,value:J(t),
+illegal:!0,relevance:0,_illegalBy:{message:n.message,index:T,
+context:t.slice(T-100,T+100),mode:n.mode,resultSoFar:k},_emitter:S};if(s)return{
+language:e,value:J(t),illegal:!1,relevance:0,errorRaised:n,_emitter:S,_top:x}
+;throw n}}function E(e,n){n=n||p.languages||Object.keys(a);const t=(e=>{
+const n={value:J(e),illegal:!1,relevance:0,_top:c,_emitter:new p.__emitter(p)}
+;return n._emitter.addText(e),n})(e),i=n.filter(v).filter(k).map((n=>f(n,e,!1)))
+;i.unshift(t);const r=i.sort(((e,n)=>{
+if(e.relevance!==n.relevance)return n.relevance-e.relevance
+;if(e.language&&n.language){if(v(e.language).supersetOf===n.language)return 1
+;if(v(n.language).supersetOf===e.language)return-1}return 0})),[s,o]=r,l=s
+;return l.secondBest=o,l}function y(e){let n=null;const t=(e=>{
+let n=e.className+" ";n+=e.parentNode?e.parentNode.className:""
+;const t=p.languageDetectRe.exec(n);if(t){const n=v(t[1])
+;return n||(H(o.replace("{}",t[1])),
+H("Falling back to no-highlight mode for this block.",e)),n?t[1]:"no-highlight"}
+return n.split(/\s+/).find((e=>_(e)||v(e)))})(e);if(_(t))return
+;if(x("before:highlightElement",{el:e,language:t
+}),e.dataset.highlighted)return void console.log("Element previously highlighted. To highlight again, first unset `dataset.highlighted`.",e)
+;if(e.children.length>0&&(p.ignoreUnescapedHTML||(console.warn("One of your code blocks includes unescaped HTML. This is a potentially serious security risk."),
+console.warn("https://github.com/highlightjs/highlight.js/wiki/security"),
+console.warn("The element with unescaped HTML:"),
+console.warn(e)),p.throwUnescapedHTML))throw new V("One of your code blocks includes unescaped HTML.",e.innerHTML)
+;n=e;const a=n.textContent,r=t?h(a,{language:t,ignoreIllegals:!0}):E(a)
+;e.innerHTML=r.value,e.dataset.highlighted="yes",((e,n,t)=>{const a=n&&i[n]||t
+;e.classList.add("hljs"),e.classList.add("language-"+a)
+})(e,t,r.language),e.result={language:r.language,re:r.relevance,
+relevance:r.relevance},r.secondBest&&(e.secondBest={
+language:r.secondBest.language,relevance:r.secondBest.relevance
+}),x("after:highlightElement",{el:e,result:r,text:a})}let N=!1;function w(){
+"loading"!==document.readyState?document.querySelectorAll(p.cssSelector).forEach(y):N=!0
+}function v(e){return e=(e||"").toLowerCase(),a[e]||a[i[e]]}
+function O(e,{languageName:n}){"string"==typeof e&&(e=[e]),e.forEach((e=>{
+i[e.toLowerCase()]=n}))}function k(e){const n=v(e)
+;return n&&!n.disableAutodetect}function x(e,n){const t=e;r.forEach((e=>{
+e[t]&&e[t](n)}))}
+"undefined"!=typeof window&&window.addEventListener&&window.addEventListener("DOMContentLoaded",(()=>{
+N&&w()}),!1),Object.assign(t,{highlight:h,highlightAuto:E,highlightAll:w,
+highlightElement:y,
+highlightBlock:e=>(q("10.7.0","highlightBlock will be removed entirely in v12.0"),
+q("10.7.0","Please use highlightElement now."),y(e)),configure:e=>{p=Y(p,e)},
+initHighlighting:()=>{
+w(),q("10.6.0","initHighlighting() deprecated.  Use highlightAll() now.")},
+initHighlightingOnLoad:()=>{
+w(),q("10.6.0","initHighlightingOnLoad() deprecated.  Use highlightAll() now.")
+},registerLanguage:(e,n)=>{let i=null;try{i=n(t)}catch(n){
+if(K("Language definition for '{}' could not be registered.".replace("{}",e)),
+!s)throw n;K(n),i=c}
+i.name||(i.name=e),a[e]=i,i.rawDefinition=n.bind(null,t),i.aliases&&O(i.aliases,{
+languageName:e})},unregisterLanguage:e=>{delete a[e]
+;for(const n of Object.keys(i))i[n]===e&&delete i[n]},
+listLanguages:()=>Object.keys(a),getLanguage:v,registerAliases:O,
+autoDetection:k,inherit:Y,addPlugin:e=>{(e=>{
+e["before:highlightBlock"]&&!e["before:highlightElement"]&&(e["before:highlightElement"]=n=>{
+e["before:highlightBlock"](Object.assign({block:n.el},n))
+}),e["after:highlightBlock"]&&!e["after:highlightElement"]&&(e["after:highlightElement"]=n=>{
+e["after:highlightBlock"](Object.assign({block:n.el},n))})})(e),r.push(e)},
+removePlugin:e=>{const n=r.indexOf(e);-1!==n&&r.splice(n,1)}}),t.debugMode=()=>{
+s=!1},t.safeMode=()=>{s=!0},t.versionString="11.9.0",t.regex={concat:b,
+lookahead:d,either:m,optional:u,anyNumberOfTimes:g}
+;for(const n in C)"object"==typeof C[n]&&e(C[n]);return Object.assign(t,C),t
+},te=ne({});te.newInstance=()=>ne({});var ae=te;const ie=e=>({IMPORTANT:{
+scope:"meta",begin:"!important"},BLOCK_COMMENT:e.C_BLOCK_COMMENT_MODE,HEXCOLOR:{
+scope:"number",begin:/#(([0-9a-fA-F]{3,4})|(([0-9a-fA-F]{2}){3,4}))\b/},
+FUNCTION_DISPATCH:{className:"built_in",begin:/[\w-]+(?=\()/},
+ATTRIBUTE_SELECTOR_MODE:{scope:"selector-attr",begin:/\[/,end:/\]/,illegal:"$",
+contains:[e.APOS_STRING_MODE,e.QUOTE_STRING_MODE]},CSS_NUMBER_MODE:{
+scope:"number",
+begin:e.NUMBER_RE+"(%|em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc|px|deg|grad|rad|turn|s|ms|Hz|kHz|dpi|dpcm|dppx)?",
+relevance:0},CSS_VARIABLE:{className:"attr",begin:/--[A-Za-z_][A-Za-z0-9_-]*/}
+}),re=["a","abbr","address","article","aside","audio","b","blockquote","body","button","canvas","caption","cite","code","dd","del","details","dfn","div","dl","dt","em","fieldset","figcaption","figure","footer","form","h1","h2","h3","h4","h5","h6","header","hgroup","html","i","iframe","img","input","ins","kbd","label","legend","li","main","mark","menu","nav","object","ol","p","q","quote","samp","section","span","strong","summary","sup","table","tbody","td","textarea","tfoot","th","thead","time","tr","ul","var","video"],se=["any-hover","any-pointer","aspect-ratio","color","color-gamut","color-index","device-aspect-ratio","device-height","device-width","display-mode","forced-colors","grid","height","hover","inverted-colors","monochrome","orientation","overflow-block","overflow-inline","pointer","prefers-color-scheme","prefers-contrast","prefers-reduced-motion","prefers-reduced-transparency","resolution","scan","scripting","update","width","min-width","max-width","min-height","max-height"],oe=["active","any-link","blank","checked","current","default","defined","dir","disabled","drop","empty","enabled","first","first-child","first-of-type","fullscreen","future","focus","focus-visible","focus-within","has","host","host-context","hover","indeterminate","in-range","invalid","is","lang","last-child","last-of-type","left","link","local-link","not","nth-child","nth-col","nth-last-child","nth-last-col","nth-last-of-type","nth-of-type","only-child","only-of-type","optional","out-of-range","past","placeholder-shown","read-only","read-write","required","right","root","scope","target","target-within","user-invalid","valid","visited","where"],le=["after","backdrop","before","cue","cue-region","first-letter","first-line","grammar-error","marker","part","placeholder","selection","slotted","spelling-error"],ce=["align-content","align-items","align-self","all","animation","animation-delay","animation-direction","animation-duration","animation-fill-mode","animation-iteration-count","animation-name","animation-play-state","animation-timing-function","backface-visibility","background","background-attachment","background-blend-mode","background-clip","background-color","background-image","background-origin","background-position","background-repeat","background-size","block-size","border","border-block","border-block-color","border-block-end","border-block-end-color","border-block-end-style","border-block-end-width","border-block-start","border-block-start-color","border-block-start-style","border-block-start-width","border-block-style","border-block-width","border-bottom","border-bottom-color","border-bottom-left-radius","border-bottom-right-radius","border-bottom-style","border-bottom-width","border-collapse","border-color","border-image","border-image-outset","border-image-repeat","border-image-slice","border-image-source","border-image-width","border-inline","border-inline-color","border-inline-end","border-inline-end-color","border-inline-end-style","border-inline-end-width","border-inline-start","border-inline-start-color","border-inline-start-style","border-inline-start-width","border-inline-style","border-inline-width","border-left","border-left-color","border-left-style","border-left-width","border-radius","border-right","border-right-color","border-right-style","border-right-width","border-spacing","border-style","border-top","border-top-color","border-top-left-radius","border-top-right-radius","border-top-style","border-top-width","border-width","bottom","box-decoration-break","box-shadow","box-sizing","break-after","break-before","break-inside","caption-side","caret-color","clear","clip","clip-path","clip-rule","color","column-count","column-fill","column-gap","column-rule","column-rule-color","column-rule-style","column-rule-width","column-span","column-width","columns","contain","content","content-visibility","counter-increment","counter-reset","cue","cue-after","cue-before","cursor","direction","display","empty-cells","filter","flex","flex-basis","flex-direction","flex-flow","flex-grow","flex-shrink","flex-wrap","float","flow","font","font-display","font-family","font-feature-settings","font-kerning","font-language-override","font-size","font-size-adjust","font-smoothing","font-stretch","font-style","font-synthesis","font-variant","font-variant-caps","font-variant-east-asian","font-variant-ligatures","font-variant-numeric","font-variant-position","font-variation-settings","font-weight","gap","glyph-orientation-vertical","grid","grid-area","grid-auto-columns","grid-auto-flow","grid-auto-rows","grid-column","grid-column-end","grid-column-start","grid-gap","grid-row","grid-row-end","grid-row-start","grid-template","grid-template-areas","grid-template-columns","grid-template-rows","hanging-punctuation","height","hyphens","icon","image-orientation","image-rendering","image-resolution","ime-mode","inline-size","isolation","justify-content","left","letter-spacing","line-break","line-height","list-style","list-style-image","list-style-position","list-style-type","margin","margin-block","margin-block-end","margin-block-start","margin-bottom","margin-inline","margin-inline-end","margin-inline-start","margin-left","margin-right","margin-top","marks","mask","mask-border","mask-border-mode","mask-border-outset","mask-border-repeat","mask-border-slice","mask-border-source","mask-border-width","mask-clip","mask-composite","mask-image","mask-mode","mask-origin","mask-position","mask-repeat","mask-size","mask-type","max-block-size","max-height","max-inline-size","max-width","min-block-size","min-height","min-inline-size","min-width","mix-blend-mode","nav-down","nav-index","nav-left","nav-right","nav-up","none","normal","object-fit","object-position","opacity","order","orphans","outline","outline-color","outline-offset","outline-style","outline-width","overflow","overflow-wrap","overflow-x","overflow-y","padding","padding-block","padding-block-end","padding-block-start","padding-bottom","padding-inline","padding-inline-end","padding-inline-start","padding-left","padding-right","padding-top","page-break-after","page-break-before","page-break-inside","pause","pause-after","pause-before","perspective","perspective-origin","pointer-events","position","quotes","resize","rest","rest-after","rest-before","right","row-gap","scroll-margin","scroll-margin-block","scroll-margin-block-end","scroll-margin-block-start","scroll-margin-bottom","scroll-margin-inline","scroll-margin-inline-end","scroll-margin-inline-start","scroll-margin-left","scroll-margin-right","scroll-margin-top","scroll-padding","scroll-padding-block","scroll-padding-block-end","scroll-padding-block-start","scroll-padding-bottom","scroll-padding-inline","scroll-padding-inline-end","scroll-padding-inline-start","scroll-padding-left","scroll-padding-right","scroll-padding-top","scroll-snap-align","scroll-snap-stop","scroll-snap-type","scrollbar-color","scrollbar-gutter","scrollbar-width","shape-image-threshold","shape-margin","shape-outside","speak","speak-as","src","tab-size","table-layout","text-align","text-align-all","text-align-last","text-combine-upright","text-decoration","text-decoration-color","text-decoration-line","text-decoration-style","text-emphasis","text-emphasis-color","text-emphasis-position","text-emphasis-style","text-indent","text-justify","text-orientation","text-overflow","text-rendering","text-shadow","text-transform","text-underline-position","top","transform","transform-box","transform-origin","transform-style","transition","transition-delay","transition-duration","transition-property","transition-timing-function","unicode-bidi","vertical-align","visibility","voice-balance","voice-duration","voice-family","voice-pitch","voice-range","voice-rate","voice-stress","voice-volume","white-space","widows","width","will-change","word-break","word-spacing","word-wrap","writing-mode","z-index"].reverse(),de=oe.concat(le)
+;var ge="[0-9](_*[0-9])*",ue=`\\.(${ge})`,be="[0-9a-fA-F](_*[0-9a-fA-F])*",me={
+className:"number",variants:[{
+begin:`(\\b(${ge})((${ue})|\\.)?|(${ue}))[eE][+-]?(${ge})[fFdD]?\\b`},{
+begin:`\\b(${ge})((${ue})[fFdD]?\\b|\\.([fFdD]\\b)?)`},{
+begin:`(${ue})[fFdD]?\\b`},{begin:`\\b(${ge})[fFdD]\\b`},{
+begin:`\\b0[xX]((${be})\\.?|(${be})?\\.(${be}))[pP][+-]?(${ge})[fFdD]?\\b`},{
+begin:"\\b(0|[1-9](_*[0-9])*)[lL]?\\b"},{begin:`\\b0[xX](${be})[lL]?\\b`},{
+begin:"\\b0(_*[0-7])*[lL]?\\b"},{begin:"\\b0[bB][01](_*[01])*[lL]?\\b"}],
+relevance:0};function pe(e,n,t){return-1===t?"":e.replace(n,(a=>pe(e,n,t-1)))}
+const _e="[A-Za-z$_][0-9A-Za-z$_]*",he=["as","in","of","if","for","while","finally","var","new","function","do","return","void","else","break","catch","instanceof","with","throw","case","default","try","switch","continue","typeof","delete","let","yield","const","class","debugger","async","await","static","import","from","export","extends"],fe=["true","false","null","undefined","NaN","Infinity"],Ee=["Object","Function","Boolean","Symbol","Math","Date","Number","BigInt","String","RegExp","Array","Float32Array","Float64Array","Int8Array","Uint8Array","Uint8ClampedArray","Int16Array","Int32Array","Uint16Array","Uint32Array","BigInt64Array","BigUint64Array","Set","Map","WeakSet","WeakMap","ArrayBuffer","SharedArrayBuffer","Atomics","DataView","JSON","Promise","Generator","GeneratorFunction","AsyncFunction","Reflect","Proxy","Intl","WebAssembly"],ye=["Error","EvalError","InternalError","RangeError","ReferenceError","SyntaxError","TypeError","URIError"],Ne=["setInterval","setTimeout","clearInterval","clearTimeout","require","exports","eval","isFinite","isNaN","parseFloat","parseInt","decodeURI","decodeURIComponent","encodeURI","encodeURIComponent","escape","unescape"],we=["arguments","this","super","console","window","document","localStorage","sessionStorage","module","global"],ve=[].concat(Ne,Ee,ye)
+;function Oe(e){const n=e.regex,t=_e,a={begin:/<[A-Za-z0-9\\._:-]+/,
+end:/\/[A-Za-z0-9\\._:-]+>|\/>/,isTrulyOpeningTag:(e,n)=>{
+const t=e[0].length+e.index,a=e.input[t]
+;if("<"===a||","===a)return void n.ignoreMatch();let i
+;">"===a&&(((e,{after:n})=>{const t="</"+e[0].slice(1)
+;return-1!==e.input.indexOf(t,n)})(e,{after:t})||n.ignoreMatch())
+;const r=e.input.substring(t)
+;((i=r.match(/^\s*=/))||(i=r.match(/^\s+extends\s+/))&&0===i.index)&&n.ignoreMatch()
+}},i={$pattern:_e,keyword:he,literal:fe,built_in:ve,"variable.language":we
+},r="[0-9](_?[0-9])*",s=`\\.(${r})`,o="0|[1-9](_?[0-9])*|0[0-7]*[89][0-9]*",l={
+className:"number",variants:[{
+begin:`(\\b(${o})((${s})|\\.)?|(${s}))[eE][+-]?(${r})\\b`},{
+begin:`\\b(${o})\\b((${s})\\b|\\.)?|(${s})\\b`},{
+begin:"\\b(0|[1-9](_?[0-9])*)n\\b"},{
+begin:"\\b0[xX][0-9a-fA-F](_?[0-9a-fA-F])*n?\\b"},{
+begin:"\\b0[bB][0-1](_?[0-1])*n?\\b"},{begin:"\\b0[oO][0-7](_?[0-7])*n?\\b"},{
+begin:"\\b0[0-7]+n?\\b"}],relevance:0},c={className:"subst",begin:"\\$\\{",
+end:"\\}",keywords:i,contains:[]},d={begin:"html`",end:"",starts:{end:"`",
+returnEnd:!1,contains:[e.BACKSLASH_ESCAPE,c],subLanguage:"xml"}},g={
+begin:"css`",end:"",starts:{end:"`",returnEnd:!1,
+contains:[e.BACKSLASH_ESCAPE,c],subLanguage:"css"}},u={begin:"gql`",end:"",
+starts:{end:"`",returnEnd:!1,contains:[e.BACKSLASH_ESCAPE,c],
+subLanguage:"graphql"}},b={className:"string",begin:"`",end:"`",
+contains:[e.BACKSLASH_ESCAPE,c]},m={className:"comment",
+variants:[e.COMMENT(/\/\*\*(?!\/)/,"\\*/",{relevance:0,contains:[{
+begin:"(?=@[A-Za-z]+)",relevance:0,contains:[{className:"doctag",
+begin:"@[A-Za-z]+"},{className:"type",begin:"\\{",end:"\\}",excludeEnd:!0,
+excludeBegin:!0,relevance:0},{className:"variable",begin:t+"(?=\\s*(-)|$)",
+endsParent:!0,relevance:0},{begin:/(?=[^\n])\s/,relevance:0}]}]
+}),e.C_BLOCK_COMMENT_MODE,e.C_LINE_COMMENT_MODE]
+},p=[e.APOS_STRING_MODE,e.QUOTE_STRING_MODE,d,g,u,b,{match:/\$\d+/},l]
+;c.contains=p.concat({begin:/\{/,end:/\}/,keywords:i,contains:["self"].concat(p)
+});const _=[].concat(m,c.contains),h=_.concat([{begin:/\(/,end:/\)/,keywords:i,
+contains:["self"].concat(_)}]),f={className:"params",begin:/\(/,end:/\)/,
+excludeBegin:!0,excludeEnd:!0,keywords:i,contains:h},E={variants:[{
+match:[/class/,/\s+/,t,/\s+/,/extends/,/\s+/,n.concat(t,"(",n.concat(/\./,t),")*")],
+scope:{1:"keyword",3:"title.class",5:"keyword",7:"title.class.inherited"}},{
+match:[/class/,/\s+/,t],scope:{1:"keyword",3:"title.class"}}]},y={relevance:0,
+match:n.either(/\bJSON/,/\b[A-Z][a-z]+([A-Z][a-z]*|\d)*/,/\b[A-Z]{2,}([A-Z][a-z]+|\d)+([A-Z][a-z]*)*/,/\b[A-Z]{2,}[a-z]+([A-Z][a-z]+|\d)*([A-Z][a-z]*)*/),
+className:"title.class",keywords:{_:[...Ee,...ye]}},N={variants:[{
+match:[/function/,/\s+/,t,/(?=\s*\()/]},{match:[/function/,/\s*(?=\()/]}],
+className:{1:"keyword",3:"title.function"},label:"func.def",contains:[f],
+illegal:/%/},w={
+match:n.concat(/\b/,(v=[...Ne,"super","import"],n.concat("(?!",v.join("|"),")")),t,n.lookahead(/\(/)),
+className:"title.function",relevance:0};var v;const O={
+begin:n.concat(/\./,n.lookahead(n.concat(t,/(?![0-9A-Za-z$_(])/))),end:t,
+excludeBegin:!0,keywords:"prototype",className:"property",relevance:0},k={
+match:[/get|set/,/\s+/,t,/(?=\()/],className:{1:"keyword",3:"title.function"},
+contains:[{begin:/\(\)/},f]
+},x="(\\([^()]*(\\([^()]*(\\([^()]*\\)[^()]*)*\\)[^()]*)*\\)|"+e.UNDERSCORE_IDENT_RE+")\\s*=>",M={
+match:[/const|var|let/,/\s+/,t,/\s*/,/=\s*/,/(async\s*)?/,n.lookahead(x)],
+keywords:"async",className:{1:"keyword",3:"title.function"},contains:[f]}
+;return{name:"JavaScript",aliases:["js","jsx","mjs","cjs"],keywords:i,exports:{
+PARAMS_CONTAINS:h,CLASS_REFERENCE:y},illegal:/#(?![$_A-Za-z])/,
+contains:[e.SHEBANG({label:"shebang",binary:"node",relevance:5}),{
+label:"use_strict",className:"meta",relevance:10,
+begin:/^\s*['"]use (strict|asm)['"]/
+},e.APOS_STRING_MODE,e.QUOTE_STRING_MODE,d,g,u,b,m,{match:/\$\d+/},l,y,{
+className:"attr",begin:t+n.lookahead(":"),relevance:0},M,{
+begin:"("+e.RE_STARTERS_RE+"|\\b(case|return|throw)\\b)\\s*",
+keywords:"return throw case",relevance:0,contains:[m,e.REGEXP_MODE,{
+className:"function",begin:x,returnBegin:!0,end:"\\s*=>",contains:[{
+className:"params",variants:[{begin:e.UNDERSCORE_IDENT_RE,relevance:0},{
+className:null,begin:/\(\s*\)/,skip:!0},{begin:/\(/,end:/\)/,excludeBegin:!0,
+excludeEnd:!0,keywords:i,contains:h}]}]},{begin:/,/,relevance:0},{match:/\s+/,
+relevance:0},{variants:[{begin:"<>",end:"</>"},{
+match:/<[A-Za-z0-9\\._:-]+\s*\/>/},{begin:a.begin,
+"on:begin":a.isTrulyOpeningTag,end:a.end}],subLanguage:"xml",contains:[{
+begin:a.begin,end:a.end,skip:!0,contains:["self"]}]}]},N,{
+beginKeywords:"while if switch catch for"},{
+begin:"\\b(?!function)"+e.UNDERSCORE_IDENT_RE+"\\([^()]*(\\([^()]*(\\([^()]*\\)[^()]*)*\\)[^()]*)*\\)\\s*\\{",
+returnBegin:!0,label:"func.def",contains:[f,e.inherit(e.TITLE_MODE,{begin:t,
+className:"title.function"})]},{match:/\.\.\./,relevance:0},O,{match:"\\$"+t,
+relevance:0},{match:[/\bconstructor(?=\s*\()/],className:{1:"title.function"},
+contains:[f]},w,{relevance:0,match:/\b[A-Z][A-Z_0-9]+\b/,
+className:"variable.constant"},E,k,{match:/\$[(.]/}]}}
+const ke=e=>b(/\b/,e,/\w$/.test(e)?/\b/:/\B/),xe=["Protocol","Type"].map(ke),Me=["init","self"].map(ke),Se=["Any","Self"],Ae=["actor","any","associatedtype","async","await",/as\?/,/as!/,"as","borrowing","break","case","catch","class","consume","consuming","continue","convenience","copy","default","defer","deinit","didSet","distributed","do","dynamic","each","else","enum","extension","fallthrough",/fileprivate\(set\)/,"fileprivate","final","for","func","get","guard","if","import","indirect","infix",/init\?/,/init!/,"inout",/internal\(set\)/,"internal","in","is","isolated","nonisolated","lazy","let","macro","mutating","nonmutating",/open\(set\)/,"open","operator","optional","override","postfix","precedencegroup","prefix",/private\(set\)/,"private","protocol",/public\(set\)/,"public","repeat","required","rethrows","return","set","some","static","struct","subscript","super","switch","throws","throw",/try\?/,/try!/,"try","typealias",/unowned\(safe\)/,/unowned\(unsafe\)/,"unowned","var","weak","where","while","willSet"],Ce=["false","nil","true"],Te=["assignment","associativity","higherThan","left","lowerThan","none","right"],Re=["#colorLiteral","#column","#dsohandle","#else","#elseif","#endif","#error","#file","#fileID","#fileLiteral","#filePath","#function","#if","#imageLiteral","#keyPath","#line","#selector","#sourceLocation","#warning"],De=["abs","all","any","assert","assertionFailure","debugPrint","dump","fatalError","getVaList","isKnownUniquelyReferenced","max","min","numericCast","pointwiseMax","pointwiseMin","precondition","preconditionFailure","print","readLine","repeatElement","sequence","stride","swap","swift_unboxFromSwiftValueWithType","transcode","type","unsafeBitCast","unsafeDowncast","withExtendedLifetime","withUnsafeMutablePointer","withUnsafePointer","withVaList","withoutActuallyEscaping","zip"],Ie=m(/[/=\-+!*%<>&|^~?]/,/[\u00A1-\u00A7]/,/[\u00A9\u00AB]/,/[\u00AC\u00AE]/,/[\u00B0\u00B1]/,/[\u00B6\u00BB\u00BF\u00D7\u00F7]/,/[\u2016-\u2017]/,/[\u2020-\u2027]/,/[\u2030-\u203E]/,/[\u2041-\u2053]/,/[\u2055-\u205E]/,/[\u2190-\u23FF]/,/[\u2500-\u2775]/,/[\u2794-\u2BFF]/,/[\u2E00-\u2E7F]/,/[\u3001-\u3003]/,/[\u3008-\u3020]/,/[\u3030]/),Le=m(Ie,/[\u0300-\u036F]/,/[\u1DC0-\u1DFF]/,/[\u20D0-\u20FF]/,/[\uFE00-\uFE0F]/,/[\uFE20-\uFE2F]/),Be=b(Ie,Le,"*"),$e=m(/[a-zA-Z_]/,/[\u00A8\u00AA\u00AD\u00AF\u00B2-\u00B5\u00B7-\u00BA]/,/[\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]/,/[\u0100-\u02FF\u0370-\u167F\u1681-\u180D\u180F-\u1DBF]/,/[\u1E00-\u1FFF]/,/[\u200B-\u200D\u202A-\u202E\u203F-\u2040\u2054\u2060-\u206F]/,/[\u2070-\u20CF\u2100-\u218F\u2460-\u24FF\u2776-\u2793]/,/[\u2C00-\u2DFF\u2E80-\u2FFF]/,/[\u3004-\u3007\u3021-\u302F\u3031-\u303F\u3040-\uD7FF]/,/[\uF900-\uFD3D\uFD40-\uFDCF\uFDF0-\uFE1F\uFE30-\uFE44]/,/[\uFE47-\uFEFE\uFF00-\uFFFD]/),ze=m($e,/\d/,/[\u0300-\u036F\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/),Fe=b($e,ze,"*"),Ue=b(/[A-Z]/,ze,"*"),je=["attached","autoclosure",b(/convention\(/,m("swift","block","c"),/\)/),"discardableResult","dynamicCallable","dynamicMemberLookup","escaping","freestanding","frozen","GKInspectable","IBAction","IBDesignable","IBInspectable","IBOutlet","IBSegueAction","inlinable","main","nonobjc","NSApplicationMain","NSCopying","NSManaged",b(/objc\(/,Fe,/\)/),"objc","objcMembers","propertyWrapper","requires_stored_property_inits","resultBuilder","Sendable","testable","UIApplicationMain","unchecked","unknown","usableFromInline","warn_unqualified_access"],Pe=["iOS","iOSApplicationExtension","macOS","macOSApplicationExtension","macCatalyst","macCatalystApplicationExtension","watchOS","watchOSApplicationExtension","tvOS","tvOSApplicationExtension","swift"]
+;var Ke=Object.freeze({__proto__:null,grmr_bash:e=>{const n=e.regex,t={},a={
+begin:/\$\{/,end:/\}/,contains:["self",{begin:/:-/,contains:[t]}]}
+;Object.assign(t,{className:"variable",variants:[{
+begin:n.concat(/\$[\w\d#@][\w\d_]*/,"(?![\\w\\d])(?![$])")},a]});const i={
+className:"subst",begin:/\$\(/,end:/\)/,contains:[e.BACKSLASH_ESCAPE]},r={
+begin:/<<-?\s*(?=\w+)/,starts:{contains:[e.END_SAME_AS_BEGIN({begin:/(\w+)/,
+end:/(\w+)/,className:"string"})]}},s={className:"string",begin:/"/,end:/"/,
+contains:[e.BACKSLASH_ESCAPE,t,i]};i.contains.push(s);const o={begin:/\$?\(\(/,
+end:/\)\)/,contains:[{begin:/\d+#[0-9a-f]+/,className:"number"},e.NUMBER_MODE,t]
+},l=e.SHEBANG({binary:"(fish|bash|zsh|sh|csh|ksh|tcsh|dash|scsh)",relevance:10
+}),c={className:"function",begin:/\w[\w\d_]*\s*\(\s*\)\s*\{/,returnBegin:!0,
+contains:[e.inherit(e.TITLE_MODE,{begin:/\w[\w\d_]*/})],relevance:0};return{
+name:"Bash",aliases:["sh"],keywords:{$pattern:/\b[a-z][a-z0-9._-]+\b/,
+keyword:["if","then","else","elif","fi","for","while","until","in","do","done","case","esac","function","select"],
+literal:["true","false"],
+built_in:["break","cd","continue","eval","exec","exit","export","getopts","hash","pwd","readonly","return","shift","test","times","trap","umask","unset","alias","bind","builtin","caller","command","declare","echo","enable","help","let","local","logout","mapfile","printf","read","readarray","source","type","typeset","ulimit","unalias","set","shopt","autoload","bg","bindkey","bye","cap","chdir","clone","comparguments","compcall","compctl","compdescribe","compfiles","compgroups","compquote","comptags","comptry","compvalues","dirs","disable","disown","echotc","echoti","emulate","fc","fg","float","functions","getcap","getln","history","integer","jobs","kill","limit","log","noglob","popd","print","pushd","pushln","rehash","sched","setcap","setopt","stat","suspend","ttyctl","unfunction","unhash","unlimit","unsetopt","vared","wait","whence","where","which","zcompile","zformat","zftp","zle","zmodload","zparseopts","zprof","zpty","zregexparse","zsocket","zstyle","ztcp","chcon","chgrp","chown","chmod","cp","dd","df","dir","dircolors","ln","ls","mkdir","mkfifo","mknod","mktemp","mv","realpath","rm","rmdir","shred","sync","touch","truncate","vdir","b2sum","base32","base64","cat","cksum","comm","csplit","cut","expand","fmt","fold","head","join","md5sum","nl","numfmt","od","paste","ptx","pr","sha1sum","sha224sum","sha256sum","sha384sum","sha512sum","shuf","sort","split","sum","tac","tail","tr","tsort","unexpand","uniq","wc","arch","basename","chroot","date","dirname","du","echo","env","expr","factor","groups","hostid","id","link","logname","nice","nohup","nproc","pathchk","pinky","printenv","printf","pwd","readlink","runcon","seq","sleep","stat","stdbuf","stty","tee","test","timeout","tty","uname","unlink","uptime","users","who","whoami","yes"]
+},contains:[l,e.SHEBANG(),c,o,e.HASH_COMMENT_MODE,r,{match:/(\/[a-z._-]+)+/},s,{
+match:/\\"/},{className:"string",begin:/'/,end:/'/},{match:/\\'/},t]}},grmr_plaintext:e=>({name:"Plain text",
+aliases:["text","txt"],disableAutodetect:!0}),grmr_shell:e=>({name:"Shell Session",
+aliases:["console","shellsession"],contains:[{className:"meta.prompt",
+begin:/^\s{0,3}[/~\w\d[\]()@-]*[>%$#][ ]?/,starts:{end:/[^\\](?=\s*$)/,
+subLanguage:"bash"}}]})});const He=ae;for(const e of Object.keys(Ke)){
+const n=e.replace("grmr_","").replace("_","-");He.registerLanguage(n,Ke[e])}
+return He}()
+;"object"==typeof exports&&"undefined"!=typeof module&&(module.exports=hljs);
+</script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="left">
+    <span class="title">🐱 Cat md</span>
+    <span style="font-size:11px;color:#aaa;margin-left:4px;">by dw with opencode</span>
+    <span class="readonly-badge" id="readonlyBadge">只读模式 (Read Only)</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="cat_git.html" style="font-size:13px;color:var(--accent);text-decoration:none;">🔀 Cat Git</a>
+    <a href="cat_doc.html" style="font-size:13px;color:var(--accent);text-decoration:none;">📄 Cat Doc</a>
+    <button onclick="openDirectory()" id="btnOpenDir">授权访问 (Authorize)</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar" style="display:none">
+    <div class="sidebar-toolbar">
+      <div style="width:100%;display:flex;align-items:center;gap:6px;">
+        <button onclick="refreshTree()" style="white-space:nowrap;">🔄 刷新(Refresh)</button>
+        <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto;cursor:pointer;user-select:none;white-space:nowrap;">
+          <input type="checkbox" id="readonlyCheckbox" checked onchange="toggleUserReadOnly()"> 只读(ReadOnly)
+        </label>
+      </div>
+      <button onclick="promptNewFile()" class="write-only">📄 新建文件 (New File)</button>
+      <button onclick="promptNewFolder()" class="write-only">📁 新建文件夹 (New Folder)</button>
+    </div>
+    <div class="file-tree" id="fileTree"></div>
+  </div>
+
+  <div class="editor-area">
+    <div class="editor-toolbar" id="editorToolbar" style="display:none">
+      <span class="filename" id="currentFileName">未打开文件 (No File Open)</span>
+      <span class="modified" id="modifiedIndicator" style="display:none">●未保存 (Unsaved)</span>
+      <button onclick="togglePreview()" id="btnPreview">预览 (Preview)</button>
+      <button onclick="saveFile()" class="primary write-only" id="btnSave">保存 (Save)</button>
+    </div>
+    <div class="editor-content" id="editorContent" style="display:none">
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="preview" id="preview"></div>
+    </div>
+    <div class="welcome" id="welcomeScreen">
+      <div style="font-size: 64px; margin-bottom: 20px;">🐱</div>
+      <div style="font-size: 24px; font-weight: 600; color: #2d3436;">Welcome to Cat md</div>
+      <div style="font-size: 14px; margin-top: 10px; color: #888;">首次使用需授权访问文档目录 (Authorization required for first use)</div>
+      <div style="font-size: 13px; margin-top: 6px; color: #aaa;">请在弹窗中选择本网页所在的目录，系统将自动使用其中的 doc 文件夹 (Select this page's directory, the system will use its doc subfolder)</div>
+      <div style="font-size: 12px; margin-top: 4px; color: #bbb;">授权后下次打开将自动恢复，无需重复选择 (Auto-restored on next visit, no re-selection needed)</div>
+      <button onclick="openDirectory()">授权访问 (Authorize)</button>
+      <div style="font-size: 11px; margin-top: 40px; color: #ccc;">by dw with opencode</div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fallbackFile" webkitdirectory style="display:none;">
+
+<script>
+// 禁用 highlight.js 自动初始化
+if (typeof hljs !== 'undefined') hljs.configure({ ignoreUnescapedHTML: true, languages: [] });
+
+// ==================== Security ====================
+const ALLOWED_EXTENSIONS = ['.md', '.txt', '.sh', '.py', '.c', '.h', '.java', '.js', '.css', '.html', '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.log', '.csv', '.sql', '.rb', '.go', '.rs', '.cpp', '.hpp', '.ts', '.swift', '.kt', '.pl', '.lua', '.r', '.bat', '.ps1', '.php'];
+const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+const MAX_DIR_DEPTH = 3;
+const MAX_NAME_LENGTH = 30;
+const MAX_FILES_PER_DIR = 100;
+const FORBIDDEN_NAMES = /[<>:"|?*\x00-\x1f]/;
+
+function validateFileName(name) {
+  if (!name || name.length > MAX_NAME_LENGTH) return '文件名长度需在1-' + MAX_NAME_LENGTH + '个字符之间 (Filename must be 1-' + MAX_NAME_LENGTH + ' chars)';
+  if (name.includes('/') || name.includes('\\')) return '文件名不能包含路径分隔符 (No path separators allowed)';
+  if (name === '.' || name === '..' || name.startsWith('.')) return '文件名不能以点开头 (Cannot start with dot)';
+  if (FORBIDDEN_NAMES.test(name)) return '文件名包含非法字符 (Contains illegal characters)';
+  const ext = name.lastIndexOf('.') >= 0 ? name.slice(name.lastIndexOf('.')) : '';
+  if (!ext || !ALLOWED_EXTENSIONS.includes(ext.toLowerCase())) return '仅支持 (Only supported): ' + ALLOWED_EXTENSIONS.join(', ');
+  return null;
+}
+
+function validateDirName(name) {
+  if (!name || name.length > MAX_NAME_LENGTH) return '文件夹名长度需在1-' + MAX_NAME_LENGTH + '个字符之间 (Folder name must be 1-' + MAX_NAME_LENGTH + ' chars)';
+  if (name.includes('/') || name.includes('\\')) return '文件夹名不能包含路径分隔符 (No path separators allowed)';
+  if (name === '.' || name === '..' || name.startsWith('.')) return '文件夹名不能以点开头 (Cannot start with dot)';
+  if (FORBIDDEN_NAMES.test(name)) return '文件夹名包含非法字符 (Contains illegal characters)';
+  return null;
+}
+
+function getPathDepth(path) {
+  if (!path) return 0;
+  return path.split('/').length;
+}
+
+// ==================== State ====================
+let dirHandle = null;
+let currentFileHandle = null;
+let currentFilePath = '';
+let isModified = false;
+let isPreviewMode = false;
+let selectedTreePath = '';
+let treeData = [];
+const supportsFS = ('showDirectoryPicker' in window);
+const isReadOnly = !supportsFS;
+let userReadOnly = true; // 默认只读，用户可切换
+
+function updateWriteUI() {
+  const canWrite = supportsFS && !userReadOnly;
+  document.querySelectorAll('.write-only').forEach(el => el.style.display = canWrite ? '' : 'none');
+  const editor = document.getElementById('editor');
+  if (editor) editor.readOnly = !canWrite;
+}
+
+function toggleUserReadOnly() {
+  userReadOnly = document.getElementById('readonlyCheckbox').checked;
+  updateWriteUI();
+  // 切到只读时自动进预览
+  if (userReadOnly && currentFileHandle && !isPreviewMode) {
+    setPreviewMode(true);
+  }
+}
+
+// ==================== IndexedDB for handle persistence ====================
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('Catmd', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveHandleToDB(handle) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'dirHandle');
+    await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
+  } catch (e) { /* 静默失败，不影响主功能 */ }
+}
+async function loadHandleFromDB() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('handles', 'readonly');
+    const req = tx.objectStore('handles').get('dirHandle');
+    return new Promise((r) => { req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); });
+  } catch (e) { return null; }
+}
+
+// ==================== Init ====================
+(async function init() {
+  if (isReadOnly) {
+    document.getElementById('readonlyBadge').style.display = 'inline';
+    document.getElementById('fallbackFile').addEventListener('change', handleFallbackFile);
+  }
+  updateWriteUI();
+  document.getElementById('editor').addEventListener('input', () => {
+    if (!isModified) {
+      isModified = true;
+      document.getElementById('modifiedIndicator').style.display = 'inline';
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (!isReadOnly && !userReadOnly && currentFileHandle) saveFile();
+    }
+  });
+
+  // 尝试恢复上次的目录
+  if (supportsFS) {
+    const savedHandle = await loadHandleFromDB();
+    if (savedHandle) {
+      try {
+        // 检查权限，如需要浏览器会弹确认框
+        const perm = await savedHandle.queryPermission({ mode: 'readwrite' });
+        if (perm === 'granted') {
+          dirHandle = savedHandle;
+          document.getElementById('sidebar').style.display = 'flex';
+          document.getElementById('welcomeScreen').style.display = 'none';
+          await refreshTree();
+          await navigateToHashFile();
+          return;
+        }
+        // 权限未授予，标记待授权，用户点按钮时再请求
+        window._pendingHandle = savedHandle;
+      } catch (e) { /* handle 失效，忽略 */ }
+    }
+  }
+})();
+
+// ==================== Fallback for non-Chrome (directory via webkitdirectory) ====================
+let fallbackFiles = {}; // path → File object
+
+async function handleFallbackFile(e) {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+
+  fallbackFiles = {};
+  for (const file of files) {
+    // webkitRelativePath 格式: "dirname/subdir/file.txt"
+    fallbackFiles[file.webkitRelativePath] = file;
+  }
+
+  // 构建虚拟文件树
+  treeData = buildFallbackTree(fallbackFiles);
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('welcomeScreen').style.display = 'none';
+  renderTree();
+}
+
+function buildFallbackTree(files) {
+  const root = [];
+  const dirMap = {}; // path → children array
+
+  for (const relPath of Object.keys(files)) {
+    const parts = relPath.split('/');
+    // 跳过第一级（选择的目录本身）
+    const subParts = parts.slice(1);
+    if (subParts.length === 0) continue;
+
+    let currentChildren = root;
+    let currentPath = '';
+
+    for (let i = 0; i < subParts.length; i++) {
+      const name = subParts[i];
+      currentPath = currentPath ? currentPath + '/' + name : name;
+      const isFile = (i === subParts.length - 1);
+
+      if (isFile) {
+        currentChildren.push({
+          name, path: currentPath, kind: 'file',
+          _fallbackPath: relPath // 用于读取内容
+        });
+      } else {
+        if (!dirMap[currentPath]) {
+          const children = [];
+          dirMap[currentPath] = children;
+          currentChildren.push({ name, path: currentPath, kind: 'directory', children });
+        }
+        currentChildren = dirMap[currentPath];
+      }
+    }
+  }
+
+  // 排序
+  function sortEntries(entries) {
+    entries.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    entries.forEach(e => { if (e.children) sortEntries(e.children); });
+  }
+  sortEntries(root);
+  return root;
+}
+
+// ==================== Directory Operations ====================
+async function openDirectory() {
+  if (!supportsFS) {
+    document.getElementById('fallbackFile').click();
+    return;
+  }
+  try {
+    let docHandle = null;
+
+    // 优先恢复上次保存的 doc 目录 handle
+    if (window._pendingHandle) {
+      const perm = await window._pendingHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        docHandle = window._pendingHandle;
+      }
+      window._pendingHandle = null;
+    }
+
+    // 首次：用户选择本网页所在目录，自动锁定 doc 子目录
+    if (!docHandle) {
+      const rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      docHandle = await rootHandle.getDirectoryHandle('doc', { create: true });
+    }
+
+    dirHandle = docHandle;
+    await saveHandleToDB(dirHandle);
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('welcomeScreen').style.display = 'none';
+    await refreshTree();
+    await navigateToHashFile();
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('授权失败 (Authorization failed): ' + e.message);
+  }
+}
+
+async function refreshTree() {
+  if (!dirHandle) return;
+  treeData = await readDir(dirHandle, '');
+  renderTree();
+}
+
+async function readDir(handle, path) {
+  const entries = [];
+  for await (const [name, entryHandle] of handle) {
+    const entryPath = path ? path + '/' + name : name;
+    if (entryHandle.kind === 'directory') {
+      const children = await readDir(entryHandle, entryPath);
+      entries.push({ name, path: entryPath, kind: 'directory', handle: entryHandle, children });
+    } else {
+      entries.push({ name, path: entryPath, kind: 'file', handle: entryHandle });
+    }
+  }
+  entries.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return entries;
+}
+
+// ==================== Tree Rendering ====================
+const expandedDirs = new Set();
+
+function renderTree() {
+  const container = document.getElementById('fileTree');
+  container.innerHTML = '';
+  renderEntries(container, treeData, 0);
+}
+
+function renderEntries(container, entries, depth) {
+  for (const entry of entries) {
+    const div = document.createElement('div');
+    div.className = 'tree-item' + (entry.path === selectedTreePath ? ' active' : '');
+
+    for (let i = 0; i < depth; i++) {
+      const indent = document.createElement('span');
+      indent.className = 'tree-indent';
+      div.appendChild(indent);
+    }
+
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+
+    if (entry.kind === 'directory') {
+      const expanded = expandedDirs.has(entry.path);
+      icon.textContent = expanded ? '📂' : '📁';
+      div.appendChild(icon);
+      div.appendChild(document.createTextNode(entry.name));
+      div.addEventListener('click', () => {
+        selectedTreePath = entry.path;
+        if (expandedDirs.has(entry.path)) expandedDirs.delete(entry.path);
+        else expandedDirs.add(entry.path);
+        renderTree();
+      });
+    } else {
+      icon.textContent = entry.name.match(/\.md$/i) ? '📝' : '📄';
+      div.appendChild(icon);
+      div.appendChild(document.createTextNode(entry.name));
+      div.addEventListener('click', () => {
+        selectedTreePath = entry.path;
+        openFile(entry);
+        renderTree();
+      });
+    }
+
+    container.appendChild(div);
+
+    if (entry.kind === 'directory' && expandedDirs.has(entry.path) && entry.children) {
+      renderEntries(container, entry.children, depth + 1);
+    }
+  }
+}
+
+// ==================== Hash Navigation (from Cat Git) ====================
+async function navigateToHashFile() {
+  const hash = location.hash;
+  if (!hash || !hash.startsWith('#file=')) return;
+  const targetPath = decodeURIComponent(hash.slice(6));
+  if (!targetPath || !treeData || !treeData.length) return;
+
+  const entry = findEntry(treeData, targetPath);
+  if (!entry) return;
+
+  // 展开所有父目录 (Expand all parent directories)
+  const parts = targetPath.split('/');
+  for (let i = 1; i < parts.length; i++) {
+    expandedDirs.add(parts.slice(0, i).join('/'));
+  }
+
+  selectedTreePath = entry.path;
+  renderTree();
+  await openFile(entry);
+  renderTree();
+}
+
+// ==================== File Operations ====================
+async function openFile(entry) {
+  if (isModified && !confirm('当前文件有未保存的更改，是否放弃？(Unsaved changes will be lost. Continue?)')) return;
+  try {
+    let text;
+    if (entry.handle) {
+      const file = await entry.handle.getFile();
+      if (file.size > MAX_FILE_SIZE) { alert('文件过大（超过 1MB），无法打开 (File too large, exceeds 1MB)'); return; }
+      text = await file.text();
+      currentFileHandle = entry.handle;
+    } else if (entry._fallbackPath && fallbackFiles[entry._fallbackPath]) {
+      const file = fallbackFiles[entry._fallbackPath];
+      if (file.size > MAX_FILE_SIZE) { alert('文件过大（超过 1MB），无法打开 (File too large, exceeds 1MB)'); return; }
+      text = await file.text();
+      currentFileHandle = null;
+    } else {
+      alert('无法读取文件 (Cannot read file)'); return;
+    }
+    currentFilePath = entry.path;
+    showEditor(text, entry.name);
+  } catch (e) {
+    alert('无法打开文件 (Cannot open file): ' + e.message);
+  }
+}
+
+function showEditor(text, name) {
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('editorToolbar').style.display = 'flex';
+  document.getElementById('editorContent').style.display = 'block';
+  document.getElementById('editor').value = text;
+  document.getElementById('currentFileName').textContent = name;
+  isModified = false;
+  document.getElementById('modifiedIndicator').style.display = 'none';
+  // 只读模式下直接进预览
+  if (userReadOnly || isReadOnly) {
+    setPreviewMode(true);
+  } else if (isPreviewMode) {
+    updatePreview();
+  }
+}
+
+async function saveFile() {
+  if (!currentFileHandle || isReadOnly || userReadOnly) return;
+  try {
+    const content = document.getElementById('editor').value;
+    if (new Blob([content]).size > MAX_FILE_SIZE) { alert('文件内容超过 1MB，无法保存 (Content exceeds 1MB, cannot save)'); return; }
+    const writable = await currentFileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    isModified = false;
+    document.getElementById('modifiedIndicator').style.display = 'none';
+  } catch (e) {
+    alert('保存失败 (Save failed): ' + e.message);
+  }
+}
+
+async function promptNewFile() {
+  const name = await showDialog('新建文件 (New File)', '文件名（如 notes.md）(e.g. notes.md)');
+  if (!name) return;
+  const err = validateFileName(name);
+  if (err) { alert(err); return; }
+  try {
+    const parentHandle = await getParentHandle();
+    // 检查目录内文件数量
+    let count = 0;
+    for await (const _ of parentHandle) { count++; if (count >= MAX_FILES_PER_DIR) break; }
+    if (count >= MAX_FILES_PER_DIR) { alert('该目录下文件数量已达上限（' + MAX_FILES_PER_DIR + '）(Max files per directory reached)'); return; }
+    const fileHandle = await parentHandle.getFileHandle(name, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write('');
+    await writable.close();
+    await refreshTree();
+  } catch (e) {
+    alert('创建文件失败 (Failed to create file): ' + e.message);
+  }
+}
+
+async function promptNewFolder() {
+  const name = await showDialog('新建文件夹 (New Folder)', '文件夹名称 (Folder name)');
+  if (!name) return;
+  const err = validateDirName(name);
+  if (err) { alert(err); return; }
+  // 检查目录深度
+  const currentDepth = getPathDepth(selectedTreePath);
+  if (currentDepth >= MAX_DIR_DEPTH) { alert('目录层级不能超过 ' + MAX_DIR_DEPTH + ' 层 (Max directory depth: ' + MAX_DIR_DEPTH + ')'); return; }
+  try {
+    const parentHandle = await getParentHandle();
+    // 检查目录内文件数量
+    let count = 0;
+    for await (const _ of parentHandle) { count++; if (count >= MAX_FILES_PER_DIR) break; }
+    if (count >= MAX_FILES_PER_DIR) { alert('该目录下文件数量已达上限（' + MAX_FILES_PER_DIR + '）(Max files per directory reached)'); return; }
+    await parentHandle.getDirectoryHandle(name, { create: true });
+    await refreshTree();
+  } catch (e) {
+    alert('创建文件夹失败 (Failed to create folder): ' + e.message);
+  }
+}
+
+// ==================== Helpers ====================
+async function getParentHandle() {
+  if (!selectedTreePath) return dirHandle;
+  const entry = findEntry(treeData, selectedTreePath);
+  if (entry && entry.kind === 'directory') return entry.handle;
+  // selected is a file, use its parent
+  const parts = selectedTreePath.split('/');
+  parts.pop();
+  return parts.length === 0 ? dirHandle : await resolveDir(dirHandle, parts);
+}
+
+async function resolveDir(root, parts) {
+  let handle = root;
+  for (const p of parts) {
+    handle = await handle.getDirectoryHandle(p);
+  }
+  return handle;
+}
+
+function findEntry(entries, path) {
+  for (const e of entries) {
+    if (e.path === path) return e;
+    if (e.children) {
+      const found = findEntry(e.children, path);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// ==================== Preview ====================
+function togglePreview() {
+  // 只读模式下不允许切到编辑
+  if ((userReadOnly || isReadOnly) && isPreviewMode) return;
+  setPreviewMode(!isPreviewMode);
+}
+
+function setPreviewMode(on) {
+  isPreviewMode = on;
+  const editor = document.getElementById('editor');
+  const preview = document.getElementById('preview');
+  const btn = document.getElementById('btnPreview');
+  if (on) {
+    editor.style.display = 'none';
+    preview.style.display = 'block';
+    btn.textContent = '编辑 (Edit)';
+    updatePreview();
+  } else {
+    editor.style.display = 'block';
+    preview.style.display = 'none';
+    btn.textContent = '预览 (Preview)';
+  }
+}
+
+// 文件扩展名 → highlight.js 语言映射（仅 bash/shell）
+const EXT_LANG_MAP = {
+  '.sh': 'bash', '.bash': 'bash'
+};
+
+function getLanguageFromPath(path) {
+  if (!path) return null;
+  const dot = path.lastIndexOf('.');
+  if (dot === -1) return null;
+  return EXT_LANG_MAP[path.substring(dot).toLowerCase()] || null;
+}
+
+function highlightCode(code, lang) {
+  try {
+    if (lang && (lang === 'bash' || lang === 'sh' || lang === 'shell') && hljs.getLanguage('bash')) {
+      return hljs.highlight(code, { language: 'bash' }).value;
+    }
+    return escapeHtml(code);
+  } catch (e) {
+    return escapeHtml(code);
+  }
+}
+
+function updatePreview() {
+  const md = document.getElementById('editor').value;
+  const isMd = currentFilePath && currentFilePath.match(/\.md$/i);
+  const isSh = currentFilePath && currentFilePath.match(/\.(sh|bash)$/i);
+  if (isMd) {
+    document.getElementById('preview').innerHTML = renderMarkdown(md);
+  } else if (isSh) {
+    // Shell 脚本：bash 语法高亮
+    const highlighted = highlightCode(md, 'bash');
+    document.getElementById('preview').innerHTML = '<pre class="code-preview"><code class="hljs">' + highlighted + '</code></pre>';
+  } else {
+    // 其他所有文件：纯文本显示
+    document.getElementById('preview').innerHTML = '<pre class="txt-preview">' + escapeHtml(md) + '</pre>';
+  }
+}
+
+// ==================== Markdown Parser ====================
+function renderMarkdown(src) {
+  const lines = src.split('\n');
+  let html = '';
+  let inCodeBlock = false;
+  let codeContent = '';
+  let codeLang = '';
+  let inTable = false;
+  let tableRows = [];
+  let listStack = []; // { type: 'ul'|'ol', indent }
+
+  function closeTable() {
+    if (!inTable) return '';
+    inTable = false;
+    let t = '<table><thead><tr>';
+    const hdr = parseTableRow(tableRows[0]);
+    hdr.forEach(c => t += '<th>' + inlineFormat(c) + '</th>');
+    t += '</tr></thead><tbody>';
+    for (let i = 2; i < tableRows.length; i++) {
+      t += '<tr>';
+      parseTableRow(tableRows[i]).forEach(c => t += '<td>' + inlineFormat(c) + '</td>');
+      t += '</tr>';
+    }
+    t += '</tbody></table>';
+    tableRows = [];
+    return t;
+  }
+
+  function closeLists() {
+    let out = '';
+    while (listStack.length) {
+      out += '</' + listStack.pop().type + '>';
+    }
+    return out;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Code block toggle
+    if (line.trimStart().startsWith('```')) {
+      if (inCodeBlock) {
+        const code = codeContent.slice(0, -1);
+        const cls = codeLang ? ' class="language-' + escapeHtml(codeLang) + '"' : '';
+        html += '<pre><code' + cls + '>' + highlightCode(code, codeLang) + '</code></pre>';
+        codeContent = '';
+        codeLang = '';
+        inCodeBlock = false;
+      } else {
+        html += closeTable() + closeLists();
+        codeLang = line.trimStart().substring(3).trim();
+        inCodeBlock = true;
+      }
+      continue;
+    }
+    if (inCodeBlock) { codeContent += line + '\n'; continue; }
+
+    // Table detection
+    if (line.match(/^\|([^|]+\|)+\s*$/)) {
+      if (!inTable) {
+        html += closeLists();
+        inTable = true;
+      }
+      tableRows.push(line);
+      continue;
+    } else {
+      html += closeTable();
+    }
+
+    // Blank line
+    if (line.trim() === '') {
+      html += closeLists();
+      continue;
+    }
+
+    // Horizontal rule: ---, ***, ___
+    if (line.match(/^(\s*[-*_]\s*){3,}$/) && line.trim().replace(/\s/g, '').split('').every((c, _, a) => c === a[0])) {
+      html += closeLists();
+      html += '<hr>';
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)/);
+    if (headingMatch) {
+      html += closeLists();
+      const level = headingMatch[1].length;
+      html += '<h' + level + '>' + inlineFormat(headingMatch[2]) + '</h' + level + '>';
+      continue;
+    }
+
+    // Blockquote
+    if (line.match(/^>\s?/)) {
+      html += closeLists();
+      html += '<blockquote><p>' + inlineFormat(line.replace(/^>\s?/, '')) + '</p></blockquote>';
+      continue;
+    }
+
+    // Unordered list
+    const ulMatch = line.match(/^(\s*)-\s+(.*)/);
+    if (ulMatch) {
+      const indent = ulMatch[1].length;
+      const content = ulMatch[2];
+      while (listStack.length && listStack[listStack.length - 1].indent >= indent && listStack[listStack.length - 1].type !== 'ul') {
+        html += '</' + listStack.pop().type + '>';
+      }
+      if (!listStack.length || listStack[listStack.length - 1].indent < indent) {
+        html += '<ul>';
+        listStack.push({ type: 'ul', indent });
+      }
+      html += '<li>' + inlineFormat(content) + '</li>';
+      continue;
+    }
+
+    // Ordered list
+    const olMatch = line.match(/^(\s*)\d+\.\s+(.*)/);
+    if (olMatch) {
+      const indent = olMatch[1].length;
+      const content = olMatch[2];
+      while (listStack.length && listStack[listStack.length - 1].indent >= indent && listStack[listStack.length - 1].type !== 'ol') {
+        html += '</' + listStack.pop().type + '>';
+      }
+      if (!listStack.length || listStack[listStack.length - 1].indent < indent) {
+        html += '<ol>';
+        listStack.push({ type: 'ol', indent });
+      }
+      html += '<li>' + inlineFormat(content) + '</li>';
+      continue;
+    }
+
+    // Close lists if we hit a non-list line
+    html += closeLists();
+
+    // Paragraph
+    html += '<p>' + inlineFormat(line) + '</p>';
+  }
+
+  // Cleanup unclosed blocks
+  if (inCodeBlock) {
+    const cls = codeLang ? ' class="language-' + escapeHtml(codeLang) + '"' : '';
+    html += '<pre><code' + cls + '>' + highlightCode(codeContent, codeLang) + '</code></pre>';
+  }
+  html += closeTable();
+  html += closeLists();
+  return html;
+}
+
+function inlineFormat(text) {
+  text = escapeHtml(text);
+  // Code (must come before bold/italic so backticks inside don't get processed)
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Links (sanitize href to block javascript: and data: protocols)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, label, url) {
+    const decoded = url.replace(/&#\d+;/g, '').replace(/&amp;/g, '&').trim().toLowerCase();
+    if (decoded.startsWith('javascript:') || decoded.startsWith('data:') || decoded.startsWith('vbscript:')) {
+      return label;
+    }
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+  });
+  // Line breaks: trailing backslash or two+ trailing spaces → <br>
+  text = text.replace(/\\$/, '<br>');
+  text = text.replace(/ {2,}$/, '<br>');
+  return text;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function parseTableRow(line) {
+  return line.split('|').slice(1, -1).map(c => c.trim());
+}
+
+// ==================== Dialog ====================
+function showDialog(title, placeholder) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay';
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog';
+    dialog.innerHTML =
+      '<h3>' + escapeHtml(title) + '</h3>' +
+      '<input type="text" placeholder="' + escapeHtml(placeholder) + '" id="dialogInput">' +
+      '<div class="btns">' +
+      '<button onclick="this.closest(\'.dialog-overlay\').remove()">取消 (Cancel)</button>' +
+      '<button class="primary" id="dialogOk">确定 (OK)</button>' +
+      '</div>';
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    const input = document.getElementById('dialogInput');
+    input.focus();
+    const ok = () => { const v = input.value.trim(); overlay.remove(); resolve(v || null); };
+    document.getElementById('dialogOk').addEventListener('click', ok);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') { overlay.remove(); resolve(null); } });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } });
+  });
+}
+</script>
+</body>
+</html>
