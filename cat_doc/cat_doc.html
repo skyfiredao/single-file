@@ -1570,6 +1570,7 @@ return He}()
     <div class="sidebar-toolbar">
       <div style="width:100%;display:flex;align-items:center;gap:6px;">
         <button onclick="refreshTree()" style="white-space:nowrap;">🔄 刷新(Refresh)</button>
+        <button onclick="openDirectory(true)" style="white-space:nowrap;" title="切换到其他工作目录 (Switch to another working directory)">🔀 切换(Switch)</button>
         <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto;cursor:pointer;user-select:none;white-space:nowrap;">
           <input type="checkbox" id="readonlyCheckbox" checked onchange="toggleUserReadOnly()"> 只读(ReadOnly)
         </label>
@@ -1595,7 +1596,7 @@ return He}()
       <div style="font-size: 64px; margin-bottom: 20px;">🐱</div>
       <div style="font-size: 24px; font-weight: 600; color: #2d3436;">Welcome to Cat Doc</div>
       <div style="font-size: 14px; margin-top: 10px; color: #888;">首次使用需授权访问文档目录 (Authorization required for first use)</div>
-      <div style="font-size: 13px; margin-top: 6px; color: #aaa;">请在弹窗中选择本网页所在的目录，系统将自动使用其中的 doc 文件夹 (Select this page's directory, the system will use its doc subfolder)</div>
+      <div style="font-size: 13px; margin-top: 6px; color: #aaa;">请在弹窗中选择你要浏览/编辑的工作目录 (Pick the working directory you want to browse/edit)</div>
       <div style="font-size: 12px; margin-top: 4px; color: #bbb;">授权后下次打开将自动恢复，无需重复选择 (Auto-restored on next visit, no re-selection needed)</div>
       <button onclick="openDirectory()">授权访问 (Authorize)</button>
       <div style="font-size: 11px; margin-top: 40px; color: #ccc;">by dw with opencode</div>
@@ -1803,30 +1804,42 @@ function buildFallbackTree(files) {
 }
 
 // ==================== Directory Operations ====================
-async function openDirectory() {
+async function openDirectory(forcePicker = false) {
   if (!supportsFS) {
     document.getElementById('fallbackFile').click();
     return;
   }
+  if (forcePicker && isModified) {
+    if (!confirm('当前文件有未保存修改，切换目录会丢失。是否继续？ (Unsaved changes will be lost. Continue?)')) return;
+  }
   try {
-    let docHandle = null;
+    let newHandle = null;
 
-    // 优先恢复上次保存的 doc 目录 handle
-    if (window._pendingHandle) {
+    // 恢复上次保存的目录 handle（forcePicker 模式跳过，直接弹选择器）
+    if (!forcePicker && window._pendingHandle) {
       const perm = await window._pendingHandle.requestPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        docHandle = window._pendingHandle;
+        newHandle = window._pendingHandle;
       }
       window._pendingHandle = null;
     }
 
-    // 首次：用户选择本网页所在目录，自动锁定 doc 子目录
-    if (!docHandle) {
-      const rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      docHandle = await rootHandle.getDirectoryHandle('doc', { create: true });
+    // 首次授权或强制切换：用户直接选目录，选到啥就用啥
+    if (!newHandle) {
+      newHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
     }
 
-    dirHandle = docHandle;
+    // 切换目录时重置当前文件状态
+    if (dirHandle && dirHandle !== newHandle) {
+      currentFileHandle = null;
+      currentFilePath = '';
+      isModified = false;
+      document.getElementById('editorToolbar').style.display = 'none';
+      document.getElementById('editorContent').style.display = 'none';
+      document.getElementById('modifiedIndicator').style.display = 'none';
+    }
+
+    dirHandle = newHandle;
     await saveHandleToDB(dirHandle);
     document.getElementById('sidebar').style.display = 'flex';
     document.getElementById('welcomeScreen').style.display = 'none';
