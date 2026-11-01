@@ -728,6 +728,17 @@
         </div>
 
         <div class="form-group">
+            <label class="form-label" for="prompt-template">提示词模板 Prompt Template</label>
+            <select class="form-select" id="prompt-template">
+                <option value="generic">通用 Generic</option>
+                <option value="translategemma">TranslateGemma</option>
+            </select>
+            <small style="color: var(--text-secondary); margin-top: 4px; display: block;">
+                全局手动选择，不随模型切换 / Global selection, independent of model.
+            </small>
+        </div>
+
+        <div class="form-group">
             <label class="form-label">自定义语言 Custom Languages</label>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <input type="text" class="form-input" id="new-lang-input" placeholder="e.g. Deutsch, Français, 한국어">
@@ -804,6 +815,7 @@
             ollamaUrl: 'http://localhost:11434',
             lmStudioUrl: 'http://localhost:1234',
             model: '',
+            promptTemplate: 'generic',
             customLanguages: []
         },
         history: [],
@@ -856,6 +868,7 @@
         settingsModal: document.getElementById('settings-modal'),
         historyModal: document.getElementById('history-modal'),
         modelSelect: document.getElementById('model-select'),
+        promptTemplate: document.getElementById('prompt-template'),
         ollamaUrlInput: document.getElementById('ollama-url'),
         lmStudioUrlInput: document.getElementById('lmstudio-url'),
         backendRadios: document.getElementsByName('backend'),
@@ -912,6 +925,7 @@
         // Apply config to UI
         els.ollamaUrlInput.value = STATE.config.ollamaUrl;
         els.lmStudioUrlInput.value = STATE.config.lmStudioUrl;
+        els.promptTemplate.value = STATE.config.promptTemplate;
         
         for (const radio of els.backendRadios) {
             if (radio.value === STATE.config.backend) {
@@ -1220,6 +1234,7 @@
         STATE.config.ollamaUrl = ollamaUrl || STATE.config.ollamaUrl;
         STATE.config.lmStudioUrl = lmStudioUrl || STATE.config.lmStudioUrl;
         STATE.config.model = els.modelSelect.value;
+        STATE.config.promptTemplate = els.promptTemplate.value;
         saveState();
     }
 
@@ -1289,9 +1304,6 @@
             return;
         }
 
-        setLoading(true);
-        els.targetText.innerHTML = '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
-
         const allLangs = getAllLanguages();
         const srcLangName = allLangs.find(l => l.code === STATE.currentPair.source)?.name || STATE.currentPair.source;
         const tgtLangName = allLangs.find(l => l.code === STATE.currentPair.target)?.name || STATE.currentPair.target;
@@ -1309,6 +1321,34 @@
             systemPrompt = `You are a professional translator. Translate the following text from ${srcLangName} to ${tgtLangName}. Output ONLY the translated text. Do not include any explanations, notes, or opening/closing remarks. Preserve formatting.`;
         }
 
+        let messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text }
+        ];
+        if (STATE.config.promptTemplate === 'translategemma') {
+            const languages = {
+                en: ['English', 'en'],
+                'zh-CN': ['Chinese', 'zh-Hans'],
+                'zh-TW': ['Chinese', 'zh-Hant'],
+                ja: ['Japanese', 'ja']
+            };
+            const source = languages[STATE.currentPair.source];
+            const target = languages[STATE.currentPair.target];
+            if (!source || !target) {
+                showToast('TranslateGemma 模板仅支持内置语言，请切换通用模板 / Use Generic for custom languages');
+                return;
+            }
+            const [sourceName, sourceCode] = source;
+            const [targetName, targetCode] = target;
+            messages = [{
+                role: 'user',
+                content: `You are a professional ${sourceName} (${sourceCode}) to ${targetName} (${targetCode}) translator. Your goal is to accurately convey the meaning and nuances of the original ${sourceName} text while adhering to ${targetName} grammar, vocabulary, and cultural sensitivities.\nProduce only the ${targetName} translation, without any additional explanations or commentary. Please translate the following ${sourceName} text into ${targetName}:\n\n\n${text}`
+            }];
+        }
+
+        setLoading(true);
+        els.targetText.innerHTML = '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
+
         try {
             let translatedText = '';
             
@@ -1318,10 +1358,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: STATE.config.model,
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: text }
-                        ],
+                        messages,
                         stream: false
                     })
                 });
@@ -1337,10 +1374,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: STATE.config.model,
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: text }
-                        ],
+                        messages,
                         temperature: 0.3
                     })
                 });
